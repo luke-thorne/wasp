@@ -56,7 +56,6 @@ func init() {
 }
 
 func initialize(ctx coretypes.Sandbox) (dict.Dict, error) {
-	ctx.Contract().String()
 	ctx.Log().Debugf("inccounter.init in %s", ctx.Contract().String())
 	params := ctx.Params()
 	val, _, err := codec.DecodeInt64(params.MustGet(VarCounter))
@@ -142,9 +141,9 @@ func incCounterAndRepeatMany(ctx coretypes.Sandbox) (dict.Dict, error) {
 	succ := ctx.Send(ctx.ChainID().AsAddress(), iota1, meta, opts)
 
 	if succ {
-		ctx.Log().Debugf("PostRequestToSelfWithDelay. remaining repeats = %d", numRepeats-1)
+		ctx.Log().Debugf("SendMetadataToSelfWithDelay. remaining repeats = %d", numRepeats-1)
 	} else {
-		ctx.Log().Debugf("PostRequestToSelfWithDelay FAILED. remaining repeats = %d", numRepeats-1)
+		ctx.Log().Debugf("SendMetadataToSelfWithDelay FAILED. remaining repeats = %d", numRepeats-1)
 	}
 	return nil, nil
 }

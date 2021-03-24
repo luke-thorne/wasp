@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/iotaledger/goshimmer/packages/ledgerstate"
 	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/solo"
 	"github.com/stretchr/testify/require"
@@ -85,8 +84,7 @@ func TestIncWith1Post(t *testing.T) {
 	require.NoError(t, err)
 	checkCounter(chain, 17)
 
-	req := solo.NewCallParams(incName, FuncIncAndRepeatOnceAfter5s).
-		WithTransfer(ledgerstate.ColorIOTA, 1)
+	req := solo.NewCallParams(incName, FuncIncAndRepeatOnceAfter5s).WithIotas(1)
 	_, err = chain.PostRequestSync(req, nil)
 	require.NoError(t, err)
 	// advance logical clock to unlock that timelocked request
