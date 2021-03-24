@@ -2,8 +2,11 @@ package inccounter
 
 import (
 	"fmt"
+
+	"github.com/iotaledger/goshimmer/packages/ledgerstate"
 	"github.com/iotaledger/wasp/contracts/native"
 	"github.com/iotaledger/wasp/packages/coretypes"
+	"github.com/iotaledger/wasp/packages/coretypes/assert"
 	"github.com/iotaledger/wasp/packages/coretypes/coreutil"
 	"github.com/iotaledger/wasp/packages/hashing"
 	"github.com/iotaledger/wasp/packages/kv/codec"
@@ -53,7 +56,8 @@ func init() {
 }
 
 func initialize(ctx coretypes.Sandbox) (dict.Dict, error) {
-	ctx.Log().Debugf("inccounter.init in %s", ctx.ContractID().Hname().String())
+	ctx.Contract().String()
+	ctx.Log().Debugf("inccounter.init in %s", ctx.Contract().String())
 	params := ctx.Params()
 	val, _, err := codec.DecodeInt64(params.MustGet(VarCounter))
 	if err != nil {
@@ -65,12 +69,13 @@ func initialize(ctx coretypes.Sandbox) (dict.Dict, error) {
 }
 
 func incCounter(ctx coretypes.Sandbox) (dict.Dict, error) {
-	ctx.Log().Debugf("inccounter.incCounter in %s", ctx.ContractID().Hname().String())
+	ctx.Log().Debugf("inccounter.incCounter in %s", ctx.Contract().String())
 	params := ctx.Params()
+	a := assert.NewAssert(ctx.Log())
+
 	inc, ok, err := codec.DecodeInt64(params.MustGet(VarCounter))
-	if err != nil {
-		return nil, err
-	}
+	a.RequireNoError(err)
+
 	if !ok {
 		inc = 1
 	}
@@ -85,16 +90,21 @@ func incCounterAndRepeatOnce(ctx coretypes.Sandbox) (dict.Dict, error) {
 	ctx.Log().Debugf("inccounter.incCounterAndRepeatOnce")
 	state := ctx.State()
 	val, _, _ := codec.DecodeInt64(state.MustGet(VarCounter))
+	a := assert.NewAssert(ctx.Log())
 
 	ctx.Log().Debugf(fmt.Sprintf("incCounterAndRepeatOnce: increasing counter value: %d", val))
 	state.Set(VarCounter, codec.EncodeInt64(val+1))
-	if !ctx.PostRequest(coretypes.PostRequestParams{
-		TargetContractID: ctx.ContractID(),
-		EntryPoint:       coretypes.Hn(FuncIncCounter),
-		TimeLock:         5 * 60,
-	}) {
-		return nil, fmt.Errorf("incCounterAndRepeatOnce: not enough funds")
+
+	iota1 := ledgerstate.NewColoredBalances(map[ledgerstate.Color]uint64{ledgerstate.ColorIOTA: 1})
+	meta := &coretypes.SendMetadata{
+		TargetContract: ctx.Contract(),
+		EntryPoint:     coretypes.Hn(FuncIncCounter),
 	}
+	opts := coretypes.SendOptions{TimeLock: 5 * 60}
+	succ := ctx.Send(ctx.ChainID().AsAddress(), iota1, meta, opts)
+
+	a.Require(succ, "incCounterAndRepeatOnce: not enough funds")
+
 	ctx.Log().Debugf("incCounterAndRepeatOnce: PostRequestToSelfWithDelay RequestInc 5 sec")
 	return nil, nil
 }
@@ -104,15 +114,13 @@ func incCounterAndRepeatMany(ctx coretypes.Sandbox) (dict.Dict, error) {
 
 	state := ctx.State()
 	params := ctx.Params()
-
+	a := assert.NewAssert(ctx.Log())
 	val, _, _ := codec.DecodeInt64(state.MustGet(VarCounter))
 	state.Set(VarCounter, codec.EncodeInt64(val+1))
 	ctx.Log().Debugf("inccounter.incCounterAndRepeatMany: increasing counter value: %d", val)
 
 	numRepeats, ok, err := codec.DecodeInt64(params.MustGet(VarNumRepeats))
-	if err != nil {
-		ctx.Log().Panicf("%s", err)
-	}
+	a.RequireNoError(err)
 	if !ok {
 		numRepeats, _, _ = codec.DecodeInt64(state.MustGet(VarNumRepeats))
 	}
@@ -125,11 +133,15 @@ func incCounterAndRepeatMany(ctx coretypes.Sandbox) (dict.Dict, error) {
 
 	state.Set(VarNumRepeats, codec.EncodeInt64(numRepeats-1))
 
-	if ctx.PostRequest(coretypes.PostRequestParams{
-		TargetContractID: ctx.ContractID(),
-		EntryPoint:       coretypes.Hn(FuncIncAndRepeatMany),
-		TimeLock:         1 * 60,
-	}) {
+	iota1 := ledgerstate.NewColoredBalances(map[ledgerstate.Color]uint64{ledgerstate.ColorIOTA: 1})
+	meta := &coretypes.SendMetadata{
+		TargetContract: ctx.Contract(),
+		EntryPoint:     coretypes.Hn(FuncIncAndRepeatMany),
+	}
+	opts := coretypes.SendOptions{TimeLock: 1 * 60}
+	succ := ctx.Send(ctx.ChainID().AsAddress(), iota1, meta, opts)
+
+	if succ {
 		ctx.Log().Debugf("PostRequestToSelfWithDelay. remaining repeats = %d", numRepeats-1)
 	} else {
 		ctx.Log().Debugf("PostRequestToSelfWithDelay FAILED. remaining repeats = %d", numRepeats-1)
@@ -141,36 +153,30 @@ func incCounterAndRepeatMany(ctx coretypes.Sandbox) (dict.Dict, error) {
 func spawn(ctx coretypes.Sandbox) (dict.Dict, error) {
 	ctx.Log().Debugf("inccounter.spawn")
 	state := ctx.State()
+	a := assert.NewAssert(ctx.Log())
 
 	val, _, _ := codec.DecodeInt64(state.MustGet(VarCounter))
 
 	name, ok, err := codec.DecodeString(ctx.Params().MustGet(VarName))
-	if err != nil {
-		ctx.Log().Panicf("%v", err)
-	}
+	a.RequireNoError(err)
+
 	if !ok {
 		return nil, fmt.Errorf("parameter 'name' wasnt found")
 	}
 	dscr, ok, err := codec.DecodeString(ctx.Params().MustGet(VarDescription))
-	if err != nil {
-		ctx.Log().Panicf("%v", err)
-	}
+	a.RequireNoError(err)
 	if !ok {
 		dscr = "N/A"
 	}
 	par := dict.New()
 	par.Set(VarCounter, codec.EncodeInt64(val+1))
 	err = ctx.DeployContract(Interface.ProgramHash, name, dscr, par)
-	if err != nil {
-		return nil, err
-	}
+	a.RequireNoError(err)
 
 	// increase counter in newly spawned contract
 	hname := coretypes.Hn(name)
 	_, err = ctx.Call(hname, coretypes.Hn(FuncIncCounter), nil, nil)
-	if err != nil {
-		return nil, err
-	}
+	a.RequireNoError(err)
 
 	ctx.Log().Debugf("inccounter.spawn: new contract name = %s hname = %s", name, hname.String())
 	return nil, nil
