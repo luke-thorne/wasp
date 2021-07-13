@@ -90,7 +90,13 @@ func (c *chainObj) ReceiveMessage(msg interface{}) {
 		select {
 		case c.chMsg <- msg:
 		default:
-			c.log.Warnf("ReceiveMessage with type '%T' failed. Retrying after %s", msg, chain.ReceiveMsgChannelRetryDelay)
+			m := c.currentMessage.Load()
+			blocking := "(empty)"
+			if m != nil {
+				blocking = messages.MsgTypeToString(m.(*wrapInterface).itf)
+			}
+			c.log.Warnf("ReceiveMessage with type '%T' failed. Retrying after %s. Blocked by: %s",
+				msg, chain.ReceiveMsgChannelRetryDelay, blocking)
 			go func() {
 				time.Sleep(chain.ReceiveMsgChannelRetryDelay)
 				c.ReceiveMessage(msg)

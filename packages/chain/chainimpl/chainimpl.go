@@ -71,6 +71,7 @@ type chainObj struct {
 	offledgerBroadcastUpToNPeers     int
 	offledgerBroadcastInterval       time.Duration
 	pullMissingRequestsFromCommittee bool
+	currentMessage                   atomic.Value
 }
 
 type committeeStruct struct {
@@ -150,7 +151,13 @@ func NewChain(
 	return ret
 }
 
+type wrapInterface struct {
+	itf interface{}
+}
+
 func (c *chainObj) dispatchMessage(msg interface{}) {
+	c.currentMessage.Store(&wrapInterface{msg}) // for testing
+
 	switch msgt := msg.(type) {
 	case *peering.PeerMessage:
 		c.processPeerMessage(msgt)
