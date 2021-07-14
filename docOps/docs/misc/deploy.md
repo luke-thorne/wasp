@@ -1,19 +1,18 @@
 # Using `wasp-cli` to deploy a chain and a contract
 
 Once you have one or more Wasp nodes you can use the
-[`wasp-cli`](../../tools/wasp-cli/README.md) tool to interact with it.  Here is
+[`wasp-cli`](https://github.com/iotaledger/wasp/tree/master/tools/wasp-cli) tool to interact with it.  Here is
 an example set of commands that will deploy one chain and the example
 [`inccounter`](https://github.com/iotaledger/wasp/tree/master/contracts/rust/inccounter/src)
 contract to the chain.
 
 ---
 
-First we need to tell `wasp-cli` the location of the Goshimmer node, the faucet PoW target and the
+First we need to tell `wasp-cli` the location of the Goshimmer node and the
 committee of Wasp nodes:
 
 ```
 $ wasp-cli set goshimmer.api 127.0.0.1:8080
-$ wasp-cli set -- goshimmer.faucetPoWTarget -1
 
 $ wasp-cli set wasp.0.api 127.0.0.1:9090
 $ wasp-cli set wasp.0.nanomsg 127.0.0.1:5550
@@ -30,7 +29,6 @@ The configuration is stored in `wasp-cli.json`, you can also edit the file by ha
 instead of running the commands.
 
 ---
-
 
 Next, we initialize a seed and request some funds from the faucet (we need at
 least one token for each transaction; which can be [redeemed](./accounts.md) later).
@@ -56,7 +54,7 @@ commands will be targeted to this chain.
 
 You can check that the chain was properly deployed in the Wasp node dashboard
 (e.g. `127.0.0.1:7000`). Note that the chain was deployed with some [core
-contracts](../tutorial/coresc.md).
+contracts](../contract_types/overview.md).
 
 ---
 
