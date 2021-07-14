@@ -91,6 +91,10 @@ func (c *chainObj) ReceiveMessage(msg interface{}, origMsgCount ...uint64) {
 		select {
 		case c.chMsg <- msg:
 		default:
+			if _, ok := msg.(messages.TimerTick); ok {
+				// dismiss time ticks
+				return
+			}
 			m := c.currentMessage.Load()
 			blocking := "(empty)"
 			if m != nil {
@@ -100,11 +104,12 @@ func (c *chainObj) ReceiveMessage(msg interface{}, origMsgCount ...uint64) {
 			if len(origMsgCount) > 0 {
 				orig = origMsgCount[0]
 			}
-			c.log.Warnf("ReceiveMessage: '%T' %d / %d. Chan blocked by: %s", msg, orig, c.msgCount.Load(), blocking)
+			c.log.Warnf("ReceiveMessage::retry '%T' orig=%d / count=%d. Chan blocked by: %s", msg, orig, c.msgCount.Load(), blocking)
 			go func(origMsgCount uint64) {
 				time.Sleep(chain.ReceiveMsgChannelRetryDelay)
+				c.log.Warnf("ReceiveMessage::resending '%T' orig=%d", msg, origMsgCount)
 				c.ReceiveMessage(msg, origMsgCount)
-			}(orig)
+			}(c.msgCount.Load())
 		}
 	}
 }

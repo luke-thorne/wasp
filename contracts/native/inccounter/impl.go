@@ -71,7 +71,7 @@ func incCounter(ctx coretypes.Sandbox) (dict.Dict, error) {
 
 	state := kvdecoder.New(ctx.State(), ctx.Log())
 	val := state.MustGetInt64(VarCounter, 0)
-	ctx.Log().Infof("incCounter: increasing counter value %d by %d, anchor index: #%d",
+	ctx.Log().Debugf("incCounter: increasing counter value %d by %d, anchor index: #%d",
 		val, inc, ctx.StateAnchor().StateIndex())
 	tra := "(empty)"
 	if ctx.IncomingTransfer() != nil {

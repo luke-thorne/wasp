@@ -71,8 +71,8 @@ type chainObj struct {
 	offledgerBroadcastUpToNPeers     int
 	offledgerBroadcastInterval       time.Duration
 	pullMissingRequestsFromCommittee bool
-	currentMessage                   atomic.Value
-	msgCount                         atomic.Uint64
+	currentMessage                   atomic.Value  // for tracing/testing
+	msgCount                         atomic.Uint64 // for tracing/testing
 }
 
 type committeeStruct struct {
