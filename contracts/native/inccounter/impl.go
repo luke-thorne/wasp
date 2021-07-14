@@ -77,7 +77,7 @@ func incCounter(ctx coretypes.Sandbox) (dict.Dict, error) {
 	if ctx.IncomingTransfer() != nil {
 		tra = ctx.IncomingTransfer().String()
 	}
-	ctx.Log().Infof("incCounter: incoming transfer: %s", tra)
+	ctx.Log().Debugf("incCounter: incoming transfer: %s", tra)
 	ctx.State().Set(VarCounter, codec.EncodeInt64(val+inc))
 	return nil, nil
 }

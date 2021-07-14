@@ -115,7 +115,7 @@ func (m *MockedChainCore) GetCommitteeInfo() *chain.CommitteeInfo {
 	panic("implement me")
 }
 
-func (m *MockedChainCore) ReceiveMessage(msg interface{}) {
+func (m *MockedChainCore) ReceiveMessage(msg interface{}, msgCount ...uint64) {
 	switch msgTypecasted := msg.(type) {
 	case *peering.PeerMessage:
 		m.onReceivePeerMessage(msgTypecasted)

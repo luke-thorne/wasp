@@ -276,7 +276,7 @@ func (m *mockChain) GetCommitteeInfo() *chain.CommitteeInfo {
 	}
 }
 
-func (m *mockChain) ReceiveMessage(_ interface{}) {
+func (m *mockChain) ReceiveMessage(msg interface{}, msgCount ...uint64) {
 	panic("not implemented")
 }
 

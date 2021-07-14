@@ -91,8 +91,7 @@ func (sm *stateManager) initLoadState() {
 	if err != nil {
 		go sm.chain.ReceiveMessage(messages.DismissChainMsg{
 			Reason: fmt.Sprintf("StateManager.initLoadState: %v", err),
-		},
-		)
+		})
 		return
 	}
 	if stateExists {
@@ -102,8 +101,7 @@ func (sm *stateManager) initLoadState() {
 		// create origin state in DB
 		go sm.chain.ReceiveMessage(messages.DismissChainMsg{
 			Reason: fmt.Sprintf("StateManager.initLoadState. Failed to create origin state: %v", err),
-		},
-		)
+		})
 		return
 	}
 	sm.recvLoop() // Check to process external events.
@@ -120,8 +118,7 @@ func (sm *stateManager) createOriginState() error {
 	if err != nil {
 		go sm.chain.ReceiveMessage(messages.DismissChainMsg{
 			Reason: fmt.Sprintf("StateManager.initLoadState. Failed to create origin state: %v", err),
-		},
-		)
+		})
 		return err
 	}
 	sm.chain.GlobalStateSync().SetSolidIndex(0)

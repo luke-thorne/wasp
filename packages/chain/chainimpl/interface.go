@@ -85,8 +85,9 @@ func (c *chainObj) IsDismissed() bool {
 	return c.dismissed.Load()
 }
 
-func (c *chainObj) ReceiveMessage(msg interface{}) {
+func (c *chainObj) ReceiveMessage(msg interface{}, origMsgCount ...uint64) {
 	if !c.IsDismissed() {
+		c.msgCount.Inc()
 		select {
 		case c.chMsg <- msg:
 		default:
@@ -95,12 +96,15 @@ func (c *chainObj) ReceiveMessage(msg interface{}) {
 			if m != nil {
 				blocking = messages.MsgTypeToString(m.(*wrapInterface).itf)
 			}
-			c.log.Warnf("ReceiveMessage with type '%T' failed. Retrying after %s. Blocked by: %s",
-				msg, chain.ReceiveMsgChannelRetryDelay, blocking)
-			go func() {
+			orig := uint64(0)
+			if len(origMsgCount) > 0 {
+				orig = origMsgCount[0]
+			}
+			c.log.Warnf("ReceiveMessage: '%T' %d / %d. Chan blocked by: %s", msg, orig, c.msgCount.Load(), blocking)
+			go func(origMsgCount uint64) {
 				time.Sleep(chain.ReceiveMsgChannelRetryDelay)
-				c.ReceiveMessage(msg)
-			}()
+				c.ReceiveMessage(msg, origMsgCount)
+			}(orig)
 		}
 	}
 }

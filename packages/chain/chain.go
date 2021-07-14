@@ -26,7 +26,7 @@ import (
 type ChainCore interface {
 	ID() *chainid.ChainID
 	GetCommitteeInfo() *CommitteeInfo
-	ReceiveMessage(interface{})
+	ReceiveMessage(msg interface{}, msgCount ...uint64)
 	Events() ChainEvents
 	Processors() *processors.Cache
 	GlobalStateSync() coreutil.ChainStateSync
@@ -209,4 +209,7 @@ const (
 
 	// retry delay for congested input channel for the consensus and state manager objects.channel.
 	ReceiveMsgChannelRetryDelay = 500 * time.Millisecond
+
+	// buffer length used for incoming message channels in chain
+	InChanBufferLen = 2000
 )

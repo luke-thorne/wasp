@@ -72,6 +72,7 @@ type chainObj struct {
 	offledgerBroadcastInterval       time.Duration
 	pullMissingRequestsFromCommittee bool
 	currentMessage                   atomic.Value
+	msgCount                         atomic.Uint64
 }
 
 type committeeStruct struct {
@@ -101,7 +102,7 @@ func NewChain(
 	ret := &chainObj{
 		mempool:           mempool.New(state.NewOptimisticStateReader(db, chainStateSync), blobProvider, chainLog),
 		procset:           processors.MustNew(processorConfig),
-		chMsg:             make(chan interface{}, 100),
+		chMsg:             make(chan interface{}, chain.InChanBufferLen),
 		chainID:           *chainID,
 		log:               chainLog,
 		nodeConn:          nodeconnimpl.New(txstreamClient, chainLog),

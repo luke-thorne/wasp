@@ -75,8 +75,7 @@ func (sm *stateManager) doSyncActionIfNeeded() {
 		if i > startSyncFromIndex+maxBlocksToCommitConst {
 			go sm.chain.ReceiveMessage(messages.DismissChainMsg{
 				Reason: fmt.Sprintf("StateManager.doSyncActionIfNeeded: too many blocks to catch up: %v", sm.stateOutput.GetStateIndex()-startSyncFromIndex+1),
-			},
-			)
+			})
 			return
 		}
 		nowis := time.Now()
