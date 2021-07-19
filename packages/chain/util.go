@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"runtime"
 	"strconv"
 
 	"github.com/iotaledger/goshimmer/packages/ledgerstate"
@@ -15,6 +16,10 @@ func LogStateTransition(msg *ChainTransitionEventData, reqids []iscp.RequestID, 
 	if msg.ChainOutput.GetStateIndex() > 0 {
 		log.Infof("STATE TRANSITION TO #%d. requests: %d, chain output: %s",
 			msg.VirtualState.BlockIndex(), len(reqids), iscp.OID(msg.ChainOutput.ID()))
+
+		log.Infof("================= STATE TRANSITION TO #%d. goroutines: %d",
+			msg.VirtualState.BlockIndex(), runtime.NumGoroutine())
+
 		log.Debugf("STATE TRANSITION. State hash: %s",
 			msg.VirtualState.Hash().String())
 	} else {

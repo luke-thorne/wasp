@@ -1,6 +1,8 @@
 package runvm
 
 import (
+	"runtime"
+
 	"github.com/iotaledger/goshimmer/packages/ledgerstate"
 	"github.com/iotaledger/goshimmer/packages/ledgerstate/utxoutil"
 	"github.com/iotaledger/wasp/packages/hashing"
@@ -16,7 +18,7 @@ import (
 type VMRunner struct{}
 
 func (r VMRunner) Run(task *vm.VMTask) {
-	task.Log.Infof("===== RUN VM reqs: %d", len(task.Requests))
+	task.Log.Infof("===== RUN VM reqs: %d goroutines: %d", len(task.Requests), runtime.NumGoroutine())
 
 	// panic catcher for the whole VM task
 	// ir returns gracefully if the panic was about invalidated state

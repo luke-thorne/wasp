@@ -210,5 +210,5 @@ const (
 	ReceiveMsgChannelRetryDelay = 500 * time.Millisecond
 
 	// buffer length used for incoming message channels in chain
-	InChanBufferLen = 2000
+	InChanBufferLen = 200
 )

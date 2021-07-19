@@ -1,6 +1,7 @@
 package chains
 
 import (
+	"runtime"
 	"sync"
 	"time"
 
@@ -145,6 +146,7 @@ func (c *Chains) Activate(chr *registry.ChainRecord, registryProvider registry.P
 	c.allChains[chainArr] = newChain
 	c.nodeConn.Subscribe(chr.ChainID.AliasAddress)
 	c.log.Infof("activated chain: %s", chr.ChainID.String())
+	c.log.Infof("============== activated chain: %s. goroutines: %d", chr.ChainID.String(), runtime.NumGoroutine())
 	return nil
 }
 

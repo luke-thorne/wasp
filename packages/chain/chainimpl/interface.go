@@ -4,6 +4,7 @@
 package chainimpl
 
 import (
+	"runtime"
 	"time"
 
 	"github.com/iotaledger/goshimmer/packages/ledgerstate"
@@ -104,7 +105,9 @@ func (c *chainObj) ReceiveMessage(msg interface{}, origMsgCount ...uint64) {
 			if len(origMsgCount) > 0 {
 				orig = origMsgCount[0]
 			}
-			c.log.Warnf("ReceiveMessage::retry '%T' orig=%d / count=%d. Chan blocked by: %s", msg, orig, c.msgCount.Load(), blocking)
+
+			c.log.Warnf("ReceiveMessage::retry '%T' orig=%d / count=%d. Chan blocked by: %s, goroutines: %d",
+				msg, orig, c.msgCount.Load(), blocking, runtime.NumGoroutine())
 			go func(origMsgCount uint64) {
 				time.Sleep(chain.ReceiveMsgChannelRetryDelay)
 				c.log.Warnf("ReceiveMessage::resending '%T' orig=%d", msg, origMsgCount)
