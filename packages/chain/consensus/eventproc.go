@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/iotaledger/wasp/packages/chain/messages"
 	"github.com/iotaledger/wasp/packages/hashing"
@@ -89,8 +90,8 @@ func (c *Consensus) eventTimerMsg(msg messages.TimerTick) {
 	c.refreshConsensusInfo()
 	if msg%40 == 0 {
 		if snap := c.GetStatusSnapshot(); snap != nil {
-			c.log.Infof("timer tick #%d: state index: %d, mempool = (%d, %d, %d)",
-				snap.TimerTick, snap.StateIndex, snap.Mempool.InPoolCounter, snap.Mempool.OutPoolCounter, snap.Mempool.TotalPool)
+			c.log.Infof("timer tick #%d: state index: %d, mempool = (%d, %d, %d) goroutines: %d",
+				snap.TimerTick, snap.StateIndex, snap.Mempool.InPoolCounter, snap.Mempool.OutPoolCounter, snap.Mempool.TotalPool, runtime.NumGoroutine())
 		}
 	}
 	c.takeAction()
