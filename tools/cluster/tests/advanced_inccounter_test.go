@@ -449,6 +449,7 @@ func callGetBlockIndex(t *testing.T, chain *cluster.Chain, nodeIndex int) (uint3
 		chain.ChainID,
 		blocklog.Contract.Hname(),
 		blocklog.FuncGetLatestBlockInfo.Name,
+		nil,
 	)
 	if err != nil {
 		return 0, err
@@ -493,6 +494,7 @@ func callGetStateController(t *testing.T, chain *cluster.Chain, nodeIndex int) (
 		chain.ChainID,
 		blocklog.Contract.Hname(),
 		blocklog.FuncControlAddresses.Name,
+		nil,
 	)
 	if err != nil {
 		return nil, err
@@ -508,6 +510,7 @@ func isAllowedStateControllerAddress(t *testing.T, chain *cluster.Chain, nodeInd
 		chain.ChainID,
 		governance.Contract.Hname(),
 		governance.FuncGetAllowedStateControllerAddresses.Name,
+		nil,
 	)
 	require.NoError(t, err)
 	arr := collections.NewArray16ReadOnly(ret, governance.ParamAllowedStateControllerAddresses)
