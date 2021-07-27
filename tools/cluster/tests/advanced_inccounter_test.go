@@ -12,6 +12,7 @@ import (
 	"github.com/iotaledger/wasp/client/scclient"
 	"github.com/iotaledger/wasp/contracts/native/inccounter"
 	"github.com/iotaledger/wasp/packages/iscp"
+	"github.com/iotaledger/wasp/packages/iscp/colored"
 	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/kv/collections"
 	"github.com/iotaledger/wasp/packages/kv/dict"
@@ -84,7 +85,7 @@ func (e *chainEnv) printBlocks(expected int) {
 //		recs, err := ch.GetRequestReceiptsForBlock(rec.BlockIndex)
 //		require.NoError(t, err)
 //		for _, rec := range recs {
-//			t.Logf("---------- %s : %s", rec.RequestID.String(), string(rec.LogData))
+//			t.Logf("---------- %s : %s", rec.RequestID.String(), string(rec.Error))
 //		}
 //	}
 //	t.Logf("Total requests processed: %d", sum)
@@ -197,6 +198,7 @@ func TestAccessNodesOffLedger(t *testing.T) {
 	})
 
 	t.Run("cluster=10,N=6,req=1000", func(t *testing.T) {
+		t.SkipNow()
 		const waitFor = 120 * time.Second
 		const numRequests = 1000
 		const numValidatorNodes = 6
@@ -205,6 +207,7 @@ func TestAccessNodesOffLedger(t *testing.T) {
 	})
 
 	t.Run("cluster=15,N=6,req=1000", func(t *testing.T) {
+		t.SkipNow()
 		const waitFor = 120 * time.Second
 		const numRequests = 1000
 		const numValidatorNodes = 6
@@ -213,6 +216,7 @@ func TestAccessNodesOffLedger(t *testing.T) {
 	})
 
 	t.Run("cluster=30,N=15,req=8", func(t *testing.T) {
+		t.SkipNow()
 		const waitFor = 60 * time.Second
 		const numRequests = 8
 		const numValidatorNodes = 15
@@ -221,6 +225,7 @@ func TestAccessNodesOffLedger(t *testing.T) {
 	})
 
 	t.Run("cluster=30,N=20,req=8", func(t *testing.T) {
+		t.SkipNow()
 		const waitFor = 60 * time.Second
 		const numRequests = 8
 		const numValidatorNodes = 20
@@ -244,7 +249,7 @@ func testAccessNodesOffLedger(t *testing.T, numRequests, numValidatorNodes, clus
 
 	accountsClient := e.chain.SCClient(accounts.Contract.Hname(), keyPair)
 	_, err := accountsClient.PostRequest(accounts.FuncDeposit.Name, chainclient.PostRequestParams{
-		Transfer: iscp.NewTransferIotas(100),
+		Transfer: colored.NewBalancesForIotas(100),
 	})
 	require.NoError(t, err)
 
@@ -270,9 +275,6 @@ func TestAccessNodesMany(t *testing.T) {
 	const requestsCountProgression = 2
 	const iterationCount = 9
 
-	if iterationCount > 12 {
-		t.Skip("skipping test with iteration count > 8")
-	}
 	e := setupAdvancedInccounterTest(t, clusterSize, util.MakeRange(0, numValidatorNodes))
 
 	keyPair, _ := e.getOrCreateAddress()
@@ -280,7 +282,7 @@ func TestAccessNodesMany(t *testing.T) {
 	myClient := e.chain.SCClient(incCounterSCHname, keyPair)
 
 	requestsCount := requestsCountInitial
-	requestsCummulative := 0
+	requestsCumulative := 0
 	posted := 0
 	for i := 0; i < iterationCount; i++ {
 		logMsg := fmt.Sprintf("iteration %v of %v requests", i, requestsCount)
@@ -290,8 +292,8 @@ func TestAccessNodesMany(t *testing.T) {
 			require.NoError(t, err)
 		}
 		posted += requestsCount
-		requestsCummulative += requestsCount
-		waitUntil(t, e.counterEquals(int64(requestsCummulative)), e.clu.Config.AllNodes(), 60*time.Second, logMsg)
+		requestsCumulative += requestsCount
+		waitUntil(t, e.counterEquals(int64(requestsCumulative)), e.clu.Config.AllNodes(), 60*time.Second, logMsg)
 		requestsCount *= requestsCountProgression
 	}
 	e.printBlocks(posted + 3)
@@ -489,7 +491,7 @@ func waitRequest(t *testing.T, chain *cluster.Chain, nodeIndex int, reqid iscp.R
 	succ := waitTrue(timeout, func() bool {
 		rec, err := callGetRequestRecord(t, chain, nodeIndex, reqid)
 		if err == nil && rec != nil {
-			ret = string(rec.LogData)
+			ret = rec.Error
 			return true
 		}
 		return false
