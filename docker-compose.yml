@@ -1,0 +1,51 @@
+version: "3.9"
+x-wasp-build: &wasp_build
+  context: .
+  # dockerfile: ./Dockerfile
+  args:
+    GOLANG_IMAGE_TAG: 1.16.7-buster
+    BUILD_TAGS: rocksdb
+services:
+  master:
+    build: *wasp_build
+    command: >
+      -c /run/secrets/wasp.config.json
+    secrets:
+      - wasp.config.json
+    ports:
+      - 7000:7000/tcp # Dashboard
+      - 9091:9090/tcp # Web API
+    expose:
+      - 5550/tcp
+      - 4000/udp
+    networks:
+      # - wasp
+      - shimmer
+  replica:
+    build: *wasp_build
+    command: >
+      -c /run/secrets/wasp.config.json
+    deploy:
+      replicas: ${WASP_PEER_REPLICAS:-1}
+      restart_policy:
+        condition: on-failure
+        max_attempts: 5
+    secrets:
+      - wasp.config.json
+    expose:
+      # - 7000/tcp # Dashboard
+      # - 9090/tcp # Web API
+      - 5550/tcp # nanomsg
+      - 4000/udp # peering
+    networks:
+      # - wasp
+      - shimmer
+networks:
+  shimmer:
+    external: true
+    name: docker-network_shimmer
+  # wasp:
+  #   driver: bridge
+secrets:
+  wasp.config.json:
+    file: ${WASP_CONFIG:-./docker_config.json}
