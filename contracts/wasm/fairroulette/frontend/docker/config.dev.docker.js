@@ -7,5 +7,5 @@ module.exports = {
   chainId: '#CHAIN_ID#',
   contractName: '#CONTRACT_NAME#',
   chainResolverUrl: undefined,
-  googleAnalyticsId: '#GOOGLE_ANALITICS_ID#'
+  googleAnalyticsId: '#GOOGLE_ANALYTICS_ID#'
 };

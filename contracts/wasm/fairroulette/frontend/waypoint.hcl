@@ -1,7 +1,7 @@
 # The name of your project. A project typically maps 1:1 to a VCS repository.
 # This name must be unique for your Waypoint server. If you're running in
 # local mode, this must be unique to your machine.
-project = "iscp"
+project = "fairroulette"
 
 # Labels can be specified for organizational purposes.
 labels = { "team" = "iscp" }
@@ -18,12 +18,10 @@ variable "goshimmer_url" {
 
 variable "chainid" {
     type = string
-    default = "be1j1GwB971eEAVfDmNFUtUfQ7rHEEF43Mz7yTP2bdkH"
+    default = "gzkrirdDPgatfKP46tjbVdHcWgq1mcWRAyxNJ8UfbHoT"
 }
 
-variable "adminWhitelist" {
-    type = list(string)
-}
+variable "googleAnalyticsId" {}
 
 variable "ghcr" {
     type = object({
@@ -46,6 +44,7 @@ app "fairroulette" {
                 WASP_WS_URL = "wss://${var.wasp_url}"
                 GOSHIMMER_URL = "https://${var.goshimmer_url}"
                 CHAIN_ID = var.chainid
+                GOOGLE_ANALYTICS_ID = var.googleAnalyticsId
             }
         }
 
