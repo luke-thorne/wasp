@@ -21,7 +21,7 @@ variable "wasp_config" {
 	},
 	"node": {
 		"disablePlugins": [],
-		"enablePlugins": [metrics]
+		"enablePlugins": ["metrics"]
 	},
 	"webapi": {
 		"bindAddress": "0.0.0.0:{{ env "NOMAD_PORT_api" }}",
@@ -58,7 +58,7 @@ job "iscp-evm" {
 
 	update {
 		max_parallel      = 1
-		health_check      = "checks"
+		health_check      = "task_states"
 		min_healthy_time  = "1s"
 		healthy_deadline  = "30s"
 		progress_deadline = "5m"
@@ -102,11 +102,7 @@ job "iscp-evm" {
 			config {
 				network_mode = "host"
 				image = "${artifact.image}:${artifact.tag}"
-				command = "wasp"
-				entrypoint = [""]
-				args = [
-					"-c=/local/config.json",
-				]
+				entrypoint = ["wasp", "-c", "/local/config.json"]
 				ports = [
 					"dashboard",
 					"api",
@@ -114,6 +110,10 @@ job "iscp-evm" {
 					"peering",
 					"metrics",
 				]
+
+				labels = {
+					"co.elastic.metrics/raw" = "[{\"metricsets\":[\"collector\"],\"module\":\"prometheus\",\"period\":\"10s\",\"metrics_path\":\"/metrics\",\"hosts\":[\"$${NOMAD_ADDR_metrics}\"]}]"
+				}
 
 				auth {
 					username = "${auth.username}"
@@ -157,8 +157,8 @@ job "iscp-evm" {
 			}
 
 			resources {
-				memory = 512
-				cpu = 1024
+				memory = 3000
+				cpu = 2000
 			}
 		}
 	}
@@ -210,6 +210,13 @@ job "iscp-evm" {
 					"metrics",
 				]
 
+				labels = {
+					"co.elastic.metrics/module" = "prometheus"
+					"co.elastic.metrics/hosts" = "$${NOMAD_ADDR_metrics}"
+					"co.elastic.metrics/path" = "/metrics"
+					"co.elastic.metrics/period" = "/10s"
+				}
+
 				auth {
 					username = "${auth.username}"
 					password = "${auth.password}"
@@ -252,8 +259,8 @@ job "iscp-evm" {
 			}
 
 			resources {
-				memory = 512
-				cpu = 1024
+				memory = 3000
+				cpu = 2000
 			}
 		}
 	}
