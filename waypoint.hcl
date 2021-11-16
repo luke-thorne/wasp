@@ -30,6 +30,7 @@ app "wasp-evm" {
             build_args = {
                 BUILD_TAGS = "rocksdb,builtin_static"
                 BUILD_LD_FLAGS = "-X github.com/iotaledger/wasp/packages/wasp.VersionHash=${gitrefhash()}"
+                FINAL_BINARY = "wasp"
             }
         }
 

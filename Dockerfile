@@ -19,7 +19,8 @@ COPY . .
 RUN go build -o . -tags=${BUILD_TAGS} -ldflags="${BUILD_LD_FLAGS}" ${BUILD_TARGET}
 
 # Wasp build
-FROM gcr.io/distroless/cc
+# FROM gcr.io/distroless/cc
+FROM golang:${GOLANG_IMAGE_TAG}
 
 ARG FINAL_BINARY="wasp"
 

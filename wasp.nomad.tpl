@@ -102,22 +102,28 @@ job "iscp-evm" {
     task "wasp" {
       driver = "docker"
 
-      config {
-        network_mode = "host"
-        image        = "${artifact.image}:${artifact.tag}"
-        entrypoint   = ["wasp", "-c", "/local/config.json"]
-        ports = [
-          "dashboard",
-          "api",
-          "nanomsg",
-          "peering",
-          "metrics",
-        ]
+			config {
+				network_mode = "host"
+				image = "${artifact.image}:${artifact.tag}"
+				entrypoint = ["wasp", "-c", "/local/config.json"]
+				ports = [
+					"dashboard",
+					"api",
+					"nanomsg",
+					"peering",
+					"metrics",
+				]
 
-        labels = {
-          "co.elastic.metrics/raw" = "[{\"metricsets\":[\"collector\"],\"module\":\"prometheus\",\"period\":\"10s\",\"metrics_path\":\"/metrics\",\"hosts\":[\"$${NOMAD_ADDR_metrics}\"]}]"
-          "wasp"                   = "node"
-        }
+				labels = {
+					"co.elastic.metrics/raw" = "[{\"metricsets\":[\"collector\"],\"module\":\"prometheus\",\"period\":\"10s\",\"metrics_path\":\"/metrics\",\"hosts\":[\"$${NOMAD_ADDR_metrics}\"]}]"
+				}
+
+				auth {
+					username = "${auth.username}"
+					password = "${auth.password}"
+					server_address = "${auth.server_address}"
+				}
+			}
 
         logging {
           type = "gelf"

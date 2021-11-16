@@ -25,7 +25,7 @@ job "iscp-evm-server" {
 
 	update {
 		max_parallel      = 1
-		health_check      = "checks"
+		health_check      = "task_states"
 		min_healthy_time  = "5s"
 		healthy_deadline  = "1m"
 		progress_deadline = "3m"
@@ -35,7 +35,10 @@ job "iscp-evm-server" {
 		stagger           = "5s"
 	}
 
+
 	group "node" {
+		count = 2
+
 		ephemeral_disk {
 			migrate = true
 			sticky = true
