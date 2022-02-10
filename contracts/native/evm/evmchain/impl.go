@@ -36,6 +36,7 @@ var Processor = Contract.Processor(initialize, append(
 	evm.FuncGetTransactionCountByBlockHash.WithHandler(getTransactionCountByBlockHash),
 	evm.FuncGetTransactionCountByBlockNumber.WithHandler(getTransactionCountByBlockNumber),
 	evm.FuncGetStorage.WithHandler(getStorage),
+	evm.FuncGetStateDb.WithHandler(getStateAt),
 	evm.FuncGetLogs.WithHandler(getLogs),
 )...)
 
@@ -186,6 +187,17 @@ func getStorage(ctx iscp.SandboxView) (dict.Dict, error) {
 		data, err := emu.StorageAt(addr, key, blockNumber)
 		a.RequireNoError(err)
 		return evminternal.Result(data), nil
+	})
+}
+
+func getStateAt(ctx iscp.SandboxView) (dict.Dict, error) {
+	a := assert.NewAssert(ctx.Log())
+	blockNumber := common.BytesToAddress(ctx.Params().MustGet(evm.FieldBlockNumber))
+
+	return withEmulatorR(ctx, func(emu *emulator.EVMEmulator) (dict.Dict, error) {
+		stateDb, err := emu.Blockchain().StateAt(blockNumber.Hash())
+		a.RequireNoError(err)
+		return evminternal.Result(evmtypes.EncodeStateDb(stateDb)), nil
 	})
 }
 

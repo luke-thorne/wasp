@@ -6,6 +6,7 @@
 package jsonrpc
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -52,7 +53,7 @@ func (e *EthService) BlockNumber() (*hexutil.Big, error) {
 }
 
 func (e *EthService) GetBlockByNumber(blockNumber rpc.BlockNumber, full bool) (map[string]interface{}, error) {
-	block, err := e.evmChain.BlockByNumber(parseBlockNumber(blockNumber))
+	block, err := e.evmChain.BlockByNumber(context.TODO(), blockNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +64,7 @@ func (e *EthService) GetBlockByNumber(blockNumber rpc.BlockNumber, full bool) (m
 }
 
 func (e *EthService) GetBlockByHash(hash common.Hash, full bool) (map[string]interface{}, error) {
-	block, err := e.evmChain.BlockByHash(hash)
+	block, err := e.evmChain.BlockByHash(context.TODO(), hash)
 	if err != nil {
 		return nil, err
 	}

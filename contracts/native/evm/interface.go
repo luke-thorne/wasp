@@ -21,12 +21,15 @@ var (
 	FuncGetBlockNumber                      = coreutil.ViewFunc("getBlockNumber")
 	FuncGetBlockByNumber                    = coreutil.ViewFunc("getBlockByNumber")
 	FuncGetBlockByHash                      = coreutil.ViewFunc("getBlockByHash")
+	FuncGetHeaderByNumber                   = coreutil.ViewFunc("getHeaderByNumber")
+	FuncGetHeaderByHash                     = coreutil.ViewFunc("getHeaderByHash")
 	FuncGetTransactionByHash                = coreutil.ViewFunc("getTransactionByHash")
 	FuncGetTransactionByBlockHashAndIndex   = coreutil.ViewFunc("getTransactionByBlockHashAndIndex")
 	FuncGetTransactionByBlockNumberAndIndex = coreutil.ViewFunc("getTransactionByBlockNumberAndIndex")
 	FuncGetTransactionCountByBlockHash      = coreutil.ViewFunc("getTransactionCountByBlockHash")
 	FuncGetTransactionCountByBlockNumber    = coreutil.ViewFunc("getTransactionCountByBlockNumber")
 	FuncGetStorage                          = coreutil.ViewFunc("getStorage")
+	FuncGetStateDb                          = coreutil.ViewFunc("getStateAt")
 	FuncGetLogs                             = coreutil.ViewFunc("getLogs")
 
 	// EVMchain SC management

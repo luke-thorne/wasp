@@ -4,10 +4,12 @@
 package jsonrpc
 
 import (
+	"context"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/iotaledger/goshimmer/packages/ledgerstate"
@@ -162,8 +164,8 @@ func (e *EVMChain) Code(address common.Address, blockNumberOrHash rpc.BlockNumbe
 	return ret.MustGet(evm.FieldResult), nil
 }
 
-func (e *EVMChain) BlockByNumber(blockNumber *big.Int) (*types.Block, error) {
-	ret, err := e.backend.CallView(e.contractName, evm.FuncGetBlockByNumber.Name, paramsWithOptionalBlockNumber(blockNumber, nil))
+func (e *EVMChain) BlockByNumber(ctx context.Context, blockNumber rpc.BlockNumber) (*types.Block, error) {
+	ret, err := e.backend.CallView(e.contractName, evm.FuncGetBlockByNumber.Name, paramsWithOptionalBlockNumber(big.NewInt(blockNumber.Int64()), nil))
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +224,7 @@ func (e *EVMChain) TransactionByBlockNumberAndIndex(blockNumber *big.Int, index 
 	}))
 }
 
-func (e *EVMChain) BlockByHash(hash common.Hash) (*types.Block, error) {
+func (e *EVMChain) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
 	ret, err := e.backend.CallView(e.contractName, evm.FuncGetBlockByHash.Name, dict.Dict{
 		evm.FieldBlockHash: hash.Bytes(),
 	})
@@ -299,6 +301,17 @@ func (e *EVMChain) StorageAt(address common.Address, key common.Hash, blockNumbe
 		return nil, err
 	}
 	return ret.MustGet(evm.FieldResult), nil
+}
+
+func (e *EVMChain) StateDBAt(key common.Hash) (*state.StateDB, error) {
+	ret, err := e.backend.CallView(e.contractName, evm.FuncGetStateDb.Name, dict.Dict{
+		evm.FieldBlockHash: key.Bytes(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	
+	return evmtypes.DecodeStateDb(ret.MustGet(evm.FieldResult))
 }
 
 func (e *EVMChain) BlockTransactionCountByHash(blockHash common.Hash) (uint64, error) {
