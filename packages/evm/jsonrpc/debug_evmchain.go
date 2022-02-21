@@ -1,3 +1,6 @@
+//go:build evm_debug
+// +build evm_debug
+
 package jsonrpc
 
 import (
