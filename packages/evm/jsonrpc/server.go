@@ -1,6 +1,9 @@
 // Copyright 2020 IOTA Stiftung
 // SPDX-License-Identifier: Apache-2.0
 
+//go:build !evm_debug
+// +build !evm_debug
+
 package jsonrpc
 
 import (

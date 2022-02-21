@@ -1,13 +1,16 @@
 // Copyright 2020 IOTA Stiftung
 // SPDX-License-Identifier: Apache-2.0
 
+//go:build evm_debug
+// +build evm_debug
+
 package jsonrpc
 
 import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-func NewDebugServer(evmChain *EVMChain, accountManager *AccountManager) *rpc.Server {
+func NewServer(evmChain *EVMChain, accountManager *AccountManager) *rpc.Server {
 	rpcsrv := rpc.NewServer()
 	for _, srv := range []struct {
 		namespace string

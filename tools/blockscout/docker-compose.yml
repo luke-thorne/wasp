@@ -1,0 +1,85 @@
+version: '3.8'
+services:
+  devnet_wasp:
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+    networks:
+      - wasp-devnet
+    volumes:
+      - wasp-db:/wasp/waspdb
+      - ./wasp.config.json:/etc/wasp_config.json
+    # expose:
+    #   - "4000/udp" # Peering
+    #   - "5550/tcp" # Nano MSG
+    #   - "7000/tcp" # Wasp Dashboard
+    #   - "9090/tcp" # Wasp WebAPI
+    ports:
+      - "4000:4000/tcp" # Peering
+      - "5550:5550/tcp" # Nano MSG
+      - "7001:7000/tcp" # Wasp Dashboard
+      - "9090:9090/tcp" # Wasp WebAPI
+  rpc:
+    depends_on:
+      - devnet_wasp
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+      args:
+        GOLANG_IMAGE_TAG: "1.17-buster"
+        BUILD_TARGET: "./tools/wasp-cli"
+        FINAL_BINARY: "wasp-cli"
+    networks:
+      - wasp-devnet
+    entrypoint: ""
+    command: wasp-cli -c /etc/wasp-cli.json chain evm jsonrpc -d --chainid 1074 -l=0.0.0.0:9091
+    volumes:
+      - "./wasp-cli.json:/etc/wasp-cli.json"
+    ports:
+      - "9091:9091/tcp" # JSON RPC
+    expose:
+      - 9091/tcp
+  postgres:
+    image: postgres
+    volumes:
+      - postgres_data:/postgres
+    ports:
+      - 5432:5432
+    networks:
+      - wasp-devnet
+    environment:
+      POSTGRES_PASSWORD: Password1
+    restart: always
+  blockscout:
+    depends_on:
+      - postgres
+      - rpc
+    image: hristomavrodiev/blockscout:v4.1.1
+    # build:
+    #   context: .
+    #   dockerfile: ./Dockerfile
+    environment:
+      NETWORK: "IOTA"
+      SUBNETWORK: "IOTA EVM"
+      BLOCKSCOUT_HOST: 0.0.0.0
+      ETHEREUM_JSONRPC_VARIANT: "GETH"
+      ETHEREUM_JSONRPC_HTTP_URL: http://rpc:9091
+      PORT: 9092
+      COIN: MIOTA
+      COIN_NAME: IOTA
+      CHAIN_ID: 1074
+      DATABASE_URL: postgresql://postgres:Password1@postgres:5432/postgres?ssl=false
+      BLOCKSCOUT_VERSION: 4.1.1-beta
+      LINK_TO_OTHER_EXPLORERS: false
+    ports:
+      - 9092:9092
+    networks:
+      - wasp-devnet
+    volumes:
+      - blockscout_data:/opt/blockscout
+networks:
+  wasp-devnet:
+volumes:
+  postgres_data: {}
+  blockscout_data: {}
+  wasp-db: {}

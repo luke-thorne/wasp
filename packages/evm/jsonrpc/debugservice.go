@@ -4,6 +4,10 @@ import (
 	"github.com/ethereum/go-ethereum/eth/tracers"
 )
 
-func NewDebugService(e tracers.Backend) *tracers.API {
-	return tracers.NewAPI(e)
+type TracerAPI struct{
+	 *tracers.API
+}
+
+func NewDebugService(e tracers.Backend) *TracerAPI {
+	return &TracerAPI{tracers.NewAPI(e)}
 }
