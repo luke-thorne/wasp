@@ -11,8 +11,11 @@ TEST_ARG=
 
 all: build-lint
 
-build:
+build-debug:
 	go build -o . -tags $(BUILD_TAGS) -ldflags $(BUILD_LD_FLAGS) ./...
+
+build:
+	go build -o . -tags $(BUILD_TAGS),evm_debug -ldflags $(BUILD_LD_FLAGS) ./...
 
 build-windows:
 	go build -o . -tags $(BUILD_TAGS) -ldflags $(BUILD_LD_FLAGS) -buildmode=exe ./...
@@ -44,6 +47,7 @@ docker-build:
 	docker build \
 		--build-arg BUILD_TAGS=${BUILD_TAGS} \
 		--build-arg BUILD_LD_FLAGS='${BUILD_LD_FLAGS}' \
+		-t blockscout_devnet_wasp \
 		.
 
 .PHONY: all build build-windows build-lint test test-short test-full install install-windows lint gofumpt-list docker-build
