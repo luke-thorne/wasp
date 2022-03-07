@@ -28,7 +28,7 @@ app "wasp-evm" {
             buildkit   = true
             dockerfile = "./Dockerfile"
             build_args = {
-                BUILD_TAGS = "rocksdb,builtin_static"
+                BUILD_TAGS = "rocksdb,builtin_static,evm_debug"
                 BUILD_LD_FLAGS = "-X github.com/iotaledger/wasp/packages/wasp.VersionHash=${gitrefhash()}"
                 FINAL_BINARY = "wasp"
             }

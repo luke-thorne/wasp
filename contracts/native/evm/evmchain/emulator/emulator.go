@@ -194,8 +194,8 @@ func (e *EVMEmulator) Rollback(timestamp uint64) {
 	}
 }
 
-// stateByBlockNumber retrieves a state by a given blocknumber.
-func (e *EVMEmulator) stateByBlockNumber(blockNumber *big.Int) (*state.StateDB, error) {
+// StateByBlockNumber retrieves a state by a given blocknumber.
+func (e *EVMEmulator) StateByBlockNumber(blockNumber *big.Int) (*state.StateDB, error) {
 	if blockNumber == nil || blockNumber.Cmp(e.blockchain.CurrentBlock().Number()) == 0 {
 		return e.blockchain.State()
 	}
@@ -208,7 +208,7 @@ func (e *EVMEmulator) stateByBlockNumber(blockNumber *big.Int) (*state.StateDB, 
 
 // CodeAt returns the code associated with a certain account in the blockchain.
 func (e *EVMEmulator) CodeAt(contract common.Address, blockNumber *big.Int) ([]byte, error) {
-	stateDB, err := e.stateByBlockNumber(blockNumber)
+	stateDB, err := e.StateByBlockNumber(blockNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ func (e *EVMEmulator) CodeAt(contract common.Address, blockNumber *big.Int) ([]b
 
 // BalanceAt returns the wei balance of a certain account in the blockchain.
 func (e *EVMEmulator) BalanceAt(contract common.Address, blockNumber *big.Int) (*big.Int, error) {
-	stateDB, err := e.stateByBlockNumber(blockNumber)
+	stateDB, err := e.StateByBlockNumber(blockNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +226,7 @@ func (e *EVMEmulator) BalanceAt(contract common.Address, blockNumber *big.Int) (
 
 // NonceAt returns the nonce of a certain account in the blockchain.
 func (e *EVMEmulator) NonceAt(contract common.Address, blockNumber *big.Int) (uint64, error) {
-	stateDB, err := e.stateByBlockNumber(blockNumber)
+	stateDB, err := e.StateByBlockNumber(blockNumber)
 	if err != nil {
 		return 0, err
 	}
@@ -235,7 +235,7 @@ func (e *EVMEmulator) NonceAt(contract common.Address, blockNumber *big.Int) (ui
 
 // StorageAt returns the value of key in the storage of an account in the blockchain.
 func (e *EVMEmulator) StorageAt(contract common.Address, key common.Hash, blockNumber *big.Int) ([]byte, error) {
-	stateDB, err := e.stateByBlockNumber(blockNumber)
+	stateDB, err := e.StateByBlockNumber(blockNumber)
 	if err != nil {
 		return nil, err
 	}

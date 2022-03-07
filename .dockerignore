@@ -11,3 +11,16 @@ wasp-cli
 *.log
 waspdb/
 docOps/
+**/blockscout/
+contracts/wasm/
+documentation/
+wasp.log
+/wasp
+/wasp-cli
+/wasp-cluster
+/dbinspector
+/evmemulator
+/schema
+/submsg
+cluster-data/
+dist/

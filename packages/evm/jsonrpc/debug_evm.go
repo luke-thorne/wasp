@@ -121,6 +121,8 @@ func (e *EVMChain) StateAtBlock(ctx context.Context, block *types.Block, reexec 
 		// statedb, err = e.blockchain.StateAt(block.Root())
 		if err == nil {
 			return statedb, nil
+		} else {
+			return nil, err
 		}
 	}
 	if base != nil {
@@ -136,7 +138,7 @@ func (e *EVMChain) StateAtBlock(ctx context.Context, block *types.Block, reexec 
 		// }
 		// The optional base statedb is given, mark the start point as parent block
 		statedb, database, report = base, base.Database(), false
-		current, err = e.BlockByHash(context.TODO(), block.ParentHash())
+		current, err = e.BlockByNumber(context.TODO(), rpc.BlockNumber(block.NumberU64()-1))
 		if err != nil {
 			return nil, err
 		}
@@ -157,6 +159,8 @@ func (e *EVMChain) StateAtBlock(ctx context.Context, block *types.Block, reexec 
 			statedb, err = state.New(current.Root(), database, nil)
 			if err == nil {
 				return statedb, nil
+			}else{
+				return nil, err
 			}
 		}
 		// Database does not have the state for the given block, try to regenerate

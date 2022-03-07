@@ -4,6 +4,8 @@
 package evmchain
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -195,7 +197,8 @@ func getStateAt(ctx iscp.SandboxView) (dict.Dict, error) {
 	blockNumber := common.BytesToAddress(ctx.Params().MustGet(evm.FieldBlockNumber))
 
 	return withEmulatorR(ctx, func(emu *emulator.EVMEmulator) (dict.Dict, error) {
-		stateDb, err := emu.Blockchain().StateAt(blockNumber.Hash())
+		stateDb, err := emu.StateByBlockNumber(new(big.Int).SetBytes(blockNumber.Bytes()))
+		// stateDb, err := emu.Blockchain().StateAt(blockNumber.Hash())
 		a.RequireNoError(err)
 		return evminternal.Result(evmtypes.EncodeStateDb(stateDb)), nil
 	})

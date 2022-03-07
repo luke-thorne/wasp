@@ -59,25 +59,25 @@ EOH
 job "iscp-evm" {
   datacenters = ["hcloud"]
 
-  update {
-    max_parallel      = 1
-    health_check      = "task_states"
-    min_healthy_time  = "1s"
-    healthy_deadline  = "30s"
-    progress_deadline = "5m"
-    auto_revert       = true
-    auto_promote      = true
-    canary            = 1
-    stagger           = "15s"
-  }
+	update {
+		max_parallel      = 2
+		health_check      = "task_states"
+		min_healthy_time  = "5s"
+		healthy_deadline  = "4m"
+		progress_deadline = "5m"
+		auto_revert       = true
+		auto_promote      = true
+		canary            = 1
+		stagger           = "15s"
+	}
 
-  group "node" {
+  group "access" {
     ephemeral_disk {
-      migrate = true
-      sticky  = true
+      migrate = false
+      sticky  = false
     }
 
-    count = 0
+    count = 1
 
     network {
       mode = "host"
@@ -176,19 +176,19 @@ job "iscp-evm" {
       }
 
       resources {
-        memory = 3000
-        cpu    = 2000
+        memory = 6000
+        cpu    = 6000
       }
     }
   }
 
-  group "access" {
+  group "node" {
     ephemeral_disk {
-      migrate = true
-      sticky  = true
+      migrate = false
+      sticky  = false
     }
 
-    count = 1
+    count = 0
 
     network {
       mode = "host"
@@ -285,8 +285,8 @@ job "iscp-evm" {
       }
 
       resources {
-        memory = 3000
-        cpu    = 2000
+        memory = 6000
+        cpu    = 6000
       }
     }
   }

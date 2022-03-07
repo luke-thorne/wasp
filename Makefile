@@ -12,6 +12,9 @@ TEST_ARG=
 all: build-lint
 
 build-debug:
+	go build -o . -tags $(BUILD_TAGS),evm_debug -ldflags $(BUILD_LD_FLAGS) ./...
+
+build:
 	go build -o . -tags $(BUILD_TAGS) -ldflags $(BUILD_LD_FLAGS) ./...
 
 build:

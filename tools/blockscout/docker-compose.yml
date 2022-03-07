@@ -29,6 +29,7 @@ services:
         GOLANG_IMAGE_TAG: "1.17-buster"
         BUILD_TARGET: "./tools/wasp-cli"
         FINAL_BINARY: "wasp-cli"
+        BUILD_TAGS: rocksdb,builtin_static,evm_debug
     networks:
       - wasp-devnet
     entrypoint: ""
