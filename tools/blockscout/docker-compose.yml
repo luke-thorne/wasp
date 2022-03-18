@@ -1,6 +1,6 @@
 version: '3.8'
 services:
-  devnet_wasp:
+  wasp:
     build:
       context: ../../
       dockerfile: Dockerfile
@@ -64,7 +64,7 @@ services:
       SUBNETWORK: "IOTA EVM"
       BLOCKSCOUT_HOST: 0.0.0.0
       ETHEREUM_JSONRPC_VARIANT: "GETH"
-      ETHEREUM_JSONRPC_HTTP_URL: http://rpc:9091
+      ETHEREUM_JSONRPC_HTTP_URL: rpc:9091
       PORT: 9092
       COIN: MIOTA
       COIN_NAME: IOTA

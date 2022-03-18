@@ -243,7 +243,19 @@ func (e *EVMChain) StateAtBlock(ctx context.Context, block *types.Block, reexec 
 }
 
 // stateAtTransaction returns the execution environment of a certain transaction.
-func (e *EVMChain) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, error){
+func (e *EVMChain) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (msg core.Message, blockContext vm.BlockContext,statedb *state.StateDB,err error){
+	defer func ()  {
+		if err == nil{
+			err = fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
+		}
+
+	}()
+	defer func() {
+        if r := recover(); r != nil && err == nil {
+			err = fmt.Errorf("recovered error %v", r)
+        }
+    }()
+
 	// Short circuit if it's genesis block.
 	if block.NumberU64() == 0 {
 		return nil, vm.BlockContext{}, nil, errors.New("no transaction in genesis")
@@ -258,7 +270,7 @@ func (e *EVMChain) StateAtTransaction(ctx context.Context, block *types.Block, t
 	}
 	// Lookup the statedb of parent block from the live database,
 	// otherwise regenerate it on the flight.
-	statedb, err := e.StateAtBlock(ctx, parent, reexec, nil, true)
+	statedb, err = e.StateAtBlock(ctx, parent, reexec, nil, true)
 	if err != nil {
 		return nil, vm.BlockContext{}, nil, err
 	}
@@ -267,11 +279,12 @@ func (e *EVMChain) StateAtTransaction(ctx context.Context, block *types.Block, t
 	}
 	// Recompute transactions up to the target index.
 	signer := types.MakeSigner(e.ChainConfig(), block.Number())
+	minerAddress := common.HexToAddress("0x0000000000000000000000000000000000000000")
 	for idx, tx := range block.Transactions() {
 		// Assemble the transaction call message and return if the requested offset
 		msg, _ := tx.AsMessage(signer, block.BaseFee())
 		txContext := core.NewEVMTxContext(msg)
-		context := core.NewEVMBlockContext(block.Header(), e, nil)
+		context := core.NewEVMBlockContext(block.Header(), e, &minerAddress)
 		if idx == txIndex {
 			return msg, context, statedb, nil
 		}
@@ -285,5 +298,5 @@ func (e *EVMChain) StateAtTransaction(ctx context.Context, block *types.Block, t
 		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
 		statedb.Finalise(vmenv.ChainConfig().IsEIP158(block.Number()))
 	}
-	return nil, vm.BlockContext{}, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
+	return nil, vm.BlockContext{}, nil, err
 }
