@@ -1,4 +1,9 @@
-FROM node:current as build
+FROM node:lts-buster as build
+
+COPY package.json .
+COPY package-lock.json .
+
+RUN npm install
 
 COPY . .
 

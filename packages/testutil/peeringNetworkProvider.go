@@ -4,11 +4,12 @@
 package testutil
 
 import (
+	"context"
 	"errors"
 	"time"
 
-	"github.com/iotaledger/hive.go/crypto/ed25519"
 	"github.com/iotaledger/hive.go/logger"
+	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/packages/peering"
 	"github.com/iotaledger/wasp/packages/peering/domain"
 	"github.com/iotaledger/wasp/packages/peering/group"
@@ -26,21 +27,10 @@ type PeeringNetwork struct {
 	log       *logger.Logger
 }
 
-// NewPeeringNetworkForLocs creates a test network with new keys, etc.
-func NewPeeringNetworkForLocs(peerNetIDs []string, bufSize int, log *logger.Logger) *PeeringNetwork {
-	identities := make([]*ed25519.KeyPair, len(peerNetIDs))
-	for i := range identities {
-		nodeIdentity := ed25519.GenerateKeyPair()
-		identities[i] = &nodeIdentity
-	}
-	behavior := NewPeeringNetReliable(log)
-	return NewPeeringNetwork(peerNetIDs, identities, bufSize, behavior, log)
-}
-
 // NewPeeringNetwork creates new test network, it can then be used to create network nodes.
 func NewPeeringNetwork(
 	netIDs []string,
-	nodeIdentities []*ed25519.KeyPair,
+	nodeIdentities []*cryptolib.KeyPair,
 	bufSize int,
 	behavior PeeringNetBehavior,
 	log *logger.Logger,
@@ -72,9 +62,9 @@ func (p *PeeringNetwork) NetworkProviders() []peering.NetworkProvider {
 	return cp
 }
 
-func (p *PeeringNetwork) nodeByNetID(nodeNetID string) *peeringNode {
+func (p *PeeringNetwork) nodeByPubKey(nodePubKey *cryptolib.PublicKey) *peeringNode {
 	for i := range p.nodes {
-		if p.nodes[i].netID == nodeNetID {
+		if p.nodes[i].identity.GetPublicKey().Equals(nodePubKey) {
 			return p.nodes[i]
 		}
 	}
@@ -99,7 +89,7 @@ func (p *PeeringNetwork) Close() error {
 //
 type peeringNode struct {
 	netID    string
-	identity *ed25519.KeyPair
+	identity *cryptolib.KeyPair
 	sendCh   chan *peeringMsg
 	recvCh   chan *peeringMsg
 	recvCbs  []*peeringCb
@@ -108,17 +98,19 @@ type peeringNode struct {
 }
 
 type peeringMsg struct {
-	from *peeringNode
-	msg  peering.PeerMessage
+	from      *cryptolib.PublicKey
+	msg       peering.PeerMessageData
+	timestamp int64
 }
 
 type peeringCb struct {
-	callback  func(recv *peering.RecvEvent) // Receive callback.
-	destNP    *peeringNetworkProvider       // Destination node.
-	peeringID *peering.PeeringID            // Only listen for specific chain msgs.
+	callback  func(recv *peering.PeerMessageIn) // Receive callback.
+	destNP    *peeringNetworkProvider           // Destination node.
+	peeringID *peering.PeeringID                // Only listen for specific chain msgs.
+	receiver  byte
 }
 
-func newPeeringNode(netID string, identity *ed25519.KeyPair, network *PeeringNetwork) *peeringNode {
+func newPeeringNode(netID string, identity *cryptolib.KeyPair, network *PeeringNetwork) *peeringNode {
 	sendCh := make(chan *peeringMsg, network.bufSize)
 	recvCh := make(chan *peeringMsg, network.bufSize)
 	recvCbs := make([]*peeringCb, 0)
@@ -131,7 +123,7 @@ func newPeeringNode(netID string, identity *ed25519.KeyPair, network *PeeringNet
 		network:  network,
 		log:      network.log.With("loc", netID),
 	}
-	network.behavior.AddLink(sendCh, recvCh, netID)
+	network.behavior.AddLink(sendCh, recvCh, identity.GetPublicKey())
 	go n.recvLoop()
 	return &n
 }
@@ -140,17 +132,17 @@ func (n *peeringNode) recvLoop() {
 	for pm := range n.recvCh {
 		msgPeeringID := pm.msg.PeeringID.String()
 		for _, cb := range n.recvCbs {
-			if cb.peeringID == nil || cb.peeringID.String() == msgPeeringID {
-				cb.callback(&peering.RecvEvent{
-					From: cb.destNP.senderByNetID(pm.from.netID),
-					Msg:  &pm.msg,
+			if cb.peeringID.String() == msgPeeringID && cb.receiver == pm.msg.MsgReceiver {
+				cb.callback(&peering.PeerMessageIn{
+					PeerMessageData: pm.msg,
+					SenderPubKey:    pm.from,
 				})
 			}
 		}
 	}
 }
 
-func (n *peeringNode) sendMsg(from *peeringNode, msg *peering.PeerMessage) {
+func (n *peeringNode) sendMsg(from *cryptolib.PublicKey, msg *peering.PeerMessageData) {
 	n.sendCh <- &peeringMsg{
 		from: from,
 		msg:  *msg,
@@ -169,7 +161,10 @@ type peeringNetworkProvider struct {
 	self    *peeringNode
 	network *PeeringNetwork
 	senders []*peeringSender // Senders for all the nodes.
+	log     *logger.Logger
 }
+
+var _ peering.NetworkProvider = &peeringNetworkProvider{}
 
 // NewpeeringNetworkProvider initializes new network provider (a local view).
 func newPeeringNetworkProvider(self *peeringNode, network *PeeringNetwork) *peeringNetworkProvider {
@@ -178,6 +173,7 @@ func newPeeringNetworkProvider(self *peeringNode, network *PeeringNetwork) *peer
 		self:    self,
 		network: network,
 		senders: senders,
+		log:     network.log.Named(self.netID),
 	}
 	for i := range network.nodes {
 		senders[i] = newPeeringSender(network.nodes[i], &netProvider)
@@ -186,8 +182,8 @@ func newPeeringNetworkProvider(self *peeringNode, network *PeeringNetwork) *peer
 }
 
 // Run implements peering.NetworkProvider.
-func (p *peeringNetworkProvider) Run(stopCh <-chan struct{}) {
-	<-stopCh
+func (p *peeringNetworkProvider) Run(ctx context.Context) {
+	<-ctx.Done()
 }
 
 // Self implements peering.NetworkProvider.
@@ -195,33 +191,43 @@ func (p *peeringNetworkProvider) Self() peering.PeerSender {
 	return newPeeringSender(p.self, p)
 }
 
-// Group implements peering.NetworkProvider.
-func (p *peeringNetworkProvider) PeerGroup(peerAddrs []string) (peering.GroupProvider, error) {
-	peers := make([]peering.PeerSender, len(peerAddrs))
-	for i := range peerAddrs {
-		n := p.network.nodeByNetID(peerAddrs[i])
+// PeerGroup implements peering.NetworkProvider.
+func (p *peeringNetworkProvider) PeerGroup(peeringID peering.PeeringID, peerPubKeys []*cryptolib.PublicKey) (peering.GroupProvider, error) {
+	peers := make([]peering.PeerSender, len(peerPubKeys))
+	for i := range peerPubKeys {
+		n := p.network.nodeByPubKey(peerPubKeys[i])
 		if n == nil {
-			return nil, errors.New("unknown_node_location")
+			return nil, errors.New("unknown node location")
 		}
 		peers[i] = p.senders[i]
 	}
-	return group.NewPeeringGroupProvider(p, peers, p.network.log)
+	return group.NewPeeringGroupProvider(p, peeringID, peers, p.log)
 }
 
-// Domain creates peering.PeerDomainProvider.
-func (p *peeringNetworkProvider) PeerDomain(peerNetIDs []string) (peering.PeerDomainProvider, error) {
-	return domain.NewPeerDomainByNetIDs(p, peerNetIDs, p.network.log)
+// PeerDomain creates peering.PeerDomainProvider.
+func (p *peeringNetworkProvider) PeerDomain(peeringID peering.PeeringID, peerPubKeys []*cryptolib.PublicKey) (peering.PeerDomainProvider, error) {
+	peers := make([]peering.PeerSender, len(peerPubKeys))
+	for i := range peerPubKeys {
+		n := p.network.nodeByPubKey(peerPubKeys[i])
+		if n == nil {
+			return nil, errors.New("unknown node pub key")
+		}
+		peers[i] = p.senders[i]
+	}
+	return domain.NewPeerDomain(p, peeringID, peers, p.log), nil
 }
 
 // Attach implements peering.NetworkProvider.
 func (p *peeringNetworkProvider) Attach(
 	peeringID *peering.PeeringID,
-	callback func(recv *peering.RecvEvent),
+	receiver byte,
+	callback func(recv *peering.PeerMessageIn),
 ) interface{} {
 	p.self.recvCbs = append(p.self.recvCbs, &peeringCb{
 		callback:  callback,
 		destNP:    p,
 		peeringID: peeringID,
+		receiver:  receiver,
 	})
 	return nil // We don't care on the attachIDs for now.
 }
@@ -229,6 +235,13 @@ func (p *peeringNetworkProvider) Attach(
 // Detach implements peering.NetworkProvider.
 func (p *peeringNetworkProvider) Detach(attachID interface{}) {
 	// Detach is not important in tests.
+}
+
+func (p *peeringNetworkProvider) SendMsgByPubKey(peerPubKey *cryptolib.PublicKey, msg *peering.PeerMessageData) {
+	s, err := p.PeerByPubKey(peerPubKey)
+	if err == nil {
+		s.SendMsg(msg)
+	}
 }
 
 // PeerByNetID implements peering.NetworkProvider.
@@ -240,9 +253,9 @@ func (p *peeringNetworkProvider) PeerByNetID(peerNetID string) (peering.PeerSend
 }
 
 // PeerByNetID implements peering.NetworkProvider.
-func (p *peeringNetworkProvider) PeerByPubKey(peerPub *ed25519.PublicKey) (peering.PeerSender, error) {
+func (p *peeringNetworkProvider) PeerByPubKey(peerPub *cryptolib.PublicKey) (peering.PeerSender, error) {
 	for i := range p.senders {
-		if p.senders[i].node.identity.PublicKey == *peerPub {
+		if p.senders[i].node.identity.GetPublicKey().Equals(peerPub) {
 			return p.senders[i], nil
 		}
 	}
@@ -276,6 +289,8 @@ type peeringSender struct {
 	netProvider *peeringNetworkProvider
 }
 
+var _ peering.PeerSender = &peeringSender{}
+
 func newPeeringSender(node *peeringNode, netProvider *peeringNetworkProvider) *peeringSender {
 	return &peeringSender{
 		node:        node,
@@ -289,13 +304,13 @@ func (p *peeringSender) NetID() string {
 }
 
 // PubKey implements peering.PeerSender.
-func (p *peeringSender) PubKey() *ed25519.PublicKey {
-	return &p.node.identity.PublicKey
+func (p *peeringSender) PubKey() *cryptolib.PublicKey {
+	return p.node.identity.GetPublicKey()
 }
 
 // Send implements peering.PeerSender.
-func (p *peeringSender) SendMsg(msg *peering.PeerMessage) {
-	p.node.sendMsg(p.netProvider.self, msg)
+func (p *peeringSender) SendMsg(msg *peering.PeerMessageData) {
+	p.node.sendMsg(p.netProvider.self.identity.GetPublicKey(), msg)
 }
 
 // IsAlive implements peering.PeerSender.
@@ -321,4 +336,9 @@ func (p *peeringSender) NumUsers() int {
 // Send implements peering.PeerSender.
 func (p *peeringSender) Close() {
 	// Not needed in tests.
+}
+
+// Status implements peering.PeerSender.
+func (p *peeringSender) Status() peering.PeerStatusProvider {
+	return p
 }

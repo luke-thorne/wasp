@@ -1,19 +1,28 @@
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 package generator
 
 import (
+	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/iotaledger/wasp/packages/iscp"
+	"github.com/iotaledger/wasp/tools/schema/model"
 )
+
+const enableLog = false
 
 const (
 	KeyArray     = "array"
 	KeyBaseType  = "basetype"
 	KeyCore      = "core"
+	KeyEvent     = "event"
+	KeyEvents    = "events"
 	KeyExist     = "exist"
 	KeyFunc      = "func"
+	KeyFuncs     = "funcs"
 	KeyInit      = "init"
 	KeyMandatory = "mandatory"
 	KeyMap       = "map"
@@ -33,7 +42,26 @@ const (
 	KeyView      = "view"
 )
 
-var emitKeyRegExp = regexp.MustCompile(`\$[a-zA-Z_]+`)
+var emitKeyRegExp = regexp.MustCompile(`\$[a-zA-Z_][a-zA-Z_0-9]*`)
+
+func (g *GenBase) indent() {
+	g.tab++
+}
+
+func (g *GenBase) undent() {
+	g.tab--
+}
+
+func (g *GenBase) log(text string) {
+	if !enableLog {
+		return
+	}
+
+	for i := 0; i < g.tab; i++ {
+		fmt.Print("  ")
+	}
+	fmt.Println(text)
+}
 
 // emit processes "$#emit template"
 // It processes all lines in the named template
@@ -41,6 +69,10 @@ var emitKeyRegExp = regexp.MustCompile(`\$[a-zA-Z_]+`)
 // Any line starting with a special "$#" directive will recursively be processed
 // An unknown directive will result in an error
 func (g *GenBase) emit(template string) {
+	g.log("$#emit " + template)
+	g.indent()
+	defer g.undent()
+
 	lines := strings.Split(g.templates[template], "\n")
 	for i := 1; i < len(lines)-1; i++ {
 		// replace any placeholder keys
@@ -49,9 +81,9 @@ func (g *GenBase) emit(template string) {
 			if ok {
 				return text
 			}
-			return "???:" + key
+			return "key???:" + key
 		})
-
+		line = strings.ReplaceAll(line, "\r", "\n")
 		// remove concatenation markers
 		line = strings.ReplaceAll(line, "$+", "")
 
@@ -85,6 +117,10 @@ func (g *GenBase) emit(template string) {
 // It processes the template for each item in the array
 // Produces an error if the array key is unknown
 func (g *GenBase) emitEach(line string) {
+	g.log(line)
+	g.indent()
+	defer g.undent()
+
 	parts := strings.Split(line, " ")
 	if len(parts) != 3 {
 		g.error(line)
@@ -93,6 +129,10 @@ func (g *GenBase) emitEach(line string) {
 
 	template := parts[2]
 	switch parts[1] {
+	case KeyEvent:
+		g.emitEachField(g.currentEvent.Fields, template)
+	case KeyEvents:
+		g.emitEachEvent(g.s.Events, template)
 	case KeyFunc:
 		g.emitEachFunc(g.s.Funcs, template)
 	case KeyMandatory:
@@ -114,63 +154,89 @@ func (g *GenBase) emitEach(line string) {
 	case KeyTypeDef:
 		g.emitEachField(g.s.Typedefs, template)
 	default:
-		g.error(line)
+		// emit multi-line text
+		text, ok := g.keys[parts[1]]
+		if !ok {
+			g.error(line)
+			return
+		}
+		if text != "" {
+			lines := strings.Split(text, "\n")
+			for _, nextLine := range lines {
+				g.keys["nextLine"] = nextLine
+				g.emit(template)
+			}
+		}
 	}
 }
 
-func (g *GenBase) emitEachField(fields []*Field, template string) {
-	g.maxCamelFldLen = 0
-	g.maxSnakeFldLen = 0
-	for _, g.currentField = range fields {
-		camelLen := len(g.currentField.Name)
-		if g.maxCamelFldLen < camelLen {
-			g.maxCamelFldLen = camelLen
-		}
-		snakeLen := len(snake(g.currentField.Name))
-		if g.maxSnakeFldLen < snakeLen {
-			g.maxSnakeFldLen = snakeLen
-		}
-	}
-
-	for _, g.currentField = range fields {
-		g.gen.setFieldKeys(true)
+func (g *GenBase) emitEachEvent(events []*model.Struct, template string) {
+	for _, g.currentEvent = range events {
+		g.log("currentEvent: " + g.currentEvent.Name.Val)
+		g.setMultiKeyValues("evtName", g.currentEvent.Name.Val)
+		g.keys["eventComment"] = g.currentEvent.Name.Comment
 		g.emit(template)
 	}
 }
 
-func (g *GenBase) emitEachFunc(funcs []*Func, template string) {
-	g.maxCamelFuncLen = 0
-	g.maxSnakeFuncLen = 0
+func (g *GenBase) emitEachField(fields []*model.Field, template string) {
+	maxCamelLength := 0
+	maxSnakeLength := 0
+	for _, g.currentField = range fields {
+		camelLen := len(g.currentField.Name)
+		if maxCamelLength < camelLen {
+			maxCamelLength = camelLen
+		}
+		snakeLen := len(snake(g.currentField.Name))
+		if maxSnakeLength < snakeLen {
+			maxSnakeLength = snakeLen
+		}
+	}
+
+	for _, g.currentField = range fields {
+		g.log("currentField: " + g.currentField.Name)
+		g.setFieldKeys(true, maxCamelLength, maxSnakeLength)
+		g.emit(template)
+	}
+}
+
+func (g *GenBase) emitEachFunc(funcs []*model.Func, template string) {
+	maxCamelLength := 0
+	maxSnakeLength := 0
 	for _, g.currentFunc = range funcs {
 		camelLen := len(g.currentFunc.Name)
-		if g.maxCamelFuncLen < camelLen {
-			g.maxCamelFuncLen = camelLen
+		if maxCamelLength < camelLen {
+			maxCamelLength = camelLen
 		}
 		snakeLen := len(snake(g.currentFunc.Name))
-		if g.maxSnakeFuncLen < snakeLen {
-			g.maxSnakeFuncLen = snakeLen
+		if maxSnakeLength < snakeLen {
+			maxSnakeLength = snakeLen
 		}
 	}
 
 	for _, g.currentFunc = range funcs {
-		g.gen.setFuncKeys()
+		g.log("currentFunc: " + g.currentFunc.Name)
+		g.setFuncKeys(true, maxCamelLength, maxSnakeLength)
 		g.emit(template)
 	}
 }
 
 func (g *GenBase) emitEachMandatoryField(template string) {
-	mandatoryFields := make([]*Field, 0)
+	mandatoryFields := make([]*model.Field, 0)
 	for _, g.currentField = range g.currentFunc.Params {
-		if !g.currentField.Optional {
+		fld := g.currentField
+		if !fld.Optional && fld.BaseType && !fld.Array && fld.MapKey == "" {
 			mandatoryFields = append(mandatoryFields, g.currentField)
 		}
 	}
 	g.emitEachField(mandatoryFields, template)
 }
 
-func (g *GenBase) emitEachStruct(structs []*Struct, template string) {
+func (g *GenBase) emitEachStruct(structs []*model.Struct, template string) {
 	for _, g.currentStruct = range structs {
-		g.setMultiKeyValues("strName", g.currentStruct.Name)
+		g.log("currentStruct: " + g.currentStruct.Name.Val)
+		g.setMultiKeyValues("strName", g.currentStruct.Name.Val)
+		g.keys["structComment"] = g.currentStruct.Name.Comment
 		g.emit(template)
 	}
 }
@@ -179,6 +245,10 @@ func (g *GenBase) emitEachStruct(structs []*Struct, template string) {
 // It can call back into go code to emit more complex stuff
 // Produces an error if emitter is unknown
 func (g *GenBase) emitFunc(line string) {
+	g.log(line)
+	g.indent()
+	defer g.undent()
+
 	parts := strings.Split(line, " ")
 	if len(parts) != 2 {
 		g.error(line)
@@ -199,6 +269,10 @@ func (g *GenBase) emitFunc(line string) {
 // Produces an error if named condition is unknown
 //nolint:funlen
 func (g *GenBase) emitIf(line string) {
+	g.log(line)
+	g.indent()
+	defer g.undent()
+
 	parts := strings.Split(line, " ")
 	if len(parts) < 3 || len(parts) > 4 {
 		g.error(line)
@@ -210,15 +284,23 @@ func (g *GenBase) emitIf(line string) {
 	case KeyArray:
 		condition = g.currentField.Array
 	case KeyBaseType:
-		condition = g.currentField.TypeID != 0
+		condition = g.currentField.BaseType
 	case KeyCore:
 		condition = g.s.CoreContracts
+	case KeyEvent:
+		condition = len(g.currentEvent.Fields) != 0
+	case KeyEvents:
+		condition = len(g.s.Events) != 0
 	case KeyExist:
 		condition = g.newTypes[g.keys[KeyProxy]]
 	case KeyFunc:
 		condition = g.keys["kind"] == KeyFunc
+	case KeyFuncs:
+		condition = len(g.s.Funcs) != 0
 	case KeyInit:
 		condition = g.currentFunc.Name == KeyInit
+	case KeyMandatory:
+		condition = !g.currentField.Optional
 	case KeyMap:
 		condition = g.currentField.MapKey != ""
 	case KeyMut:
@@ -271,6 +353,8 @@ func (g *GenBase) emitIf(line string) {
 // The special key "exist" is used to add a newly generated type
 // It can be used to prevent duplicate types from being generated
 func (g *GenBase) emitSet(line string) {
+	g.log(line)
+
 	parts := strings.Split(line, " ")
 	if len(parts) < 3 {
 		g.error(line)
@@ -290,7 +374,7 @@ func (g *GenBase) fieldIsTypeDef() bool {
 	for _, typeDef := range g.s.Typedefs {
 		if typeDef.Name == g.currentField.Type {
 			g.currentField = typeDef
-			g.gen.setFieldKeys(false)
+			g.setFieldKeys(false, 0, 0)
 			return true
 		}
 	}
@@ -302,10 +386,11 @@ func (g *GenBase) setCommonKeys() {
 	g.keys["true"] = "true"
 	g.keys["empty"] = ""
 	g.keys["space"] = " "
-	g.keys["package"] = g.s.Name
-	g.keys["Package"] = g.s.FullName
+	g.keys["package"] = g.s.PackageName
+	g.keys["Package"] = g.s.ContractName
+	g.setMultiKeyValues("pkgName", g.s.ContractName)
 	g.keys["module"] = moduleName + strings.Replace(moduleCwd[len(modulePath):], "\\", "/", -1)
-	scName := g.s.Name
+	scName := g.s.PackageName
 	if g.s.CoreContracts {
 		// strip off "core" prefix
 		scName = scName[4:]
@@ -313,40 +398,68 @@ func (g *GenBase) setCommonKeys() {
 	g.keys["scName"] = scName
 	g.keys["hscName"] = iscp.Hn(scName).String()
 	g.keys["scDesc"] = g.s.Description
-	g.keys["maxIndex"] = strconv.Itoa(g.s.KeyID)
+	g.keys["copyrightMessage"] = g.s.Copyright
 }
 
-func (g *GenBase) setFieldKeys(pad bool) {
+func (g *GenBase) setFieldKeys(pad bool, maxCamelLength, maxSnakeLength int) {
 	g.setMultiKeyValues("fldName", g.currentField.Name)
 	g.setMultiKeyValues("fldType", g.currentField.Type)
+	g.setMultiKeyValues("fldMapKey", g.currentField.MapKey)
+
+	isArray := ""
+	if g.currentField.Array {
+		isArray = "true"
+	}
+	g.keys["fldIsArray"] = isArray
+	g.keys["fldIsMap"] = g.currentField.MapKey
 
 	g.keys["fldAlias"] = g.currentField.Alias
 	g.keys["fldComment"] = g.currentField.Comment
-	g.keys["fldMapKey"] = g.currentField.MapKey
-	g.keys["fldIndex"] = strconv.Itoa(g.currentField.KeyID)
+	g.keys["eventFldComment"] = g.currentField.Comment
 
 	if pad {
-		g.keys["fldPad"] = spaces[:g.maxCamelFldLen-len(g.keys["fldName"])]
-		g.keys["fld_pad"] = spaces[:g.maxSnakeFldLen-len(g.keys["fld_name"])]
+		g.keys["fldPad"] = spaces[:maxCamelLength-len(g.keys["fldName"])]
+		g.keys["fld_pad"] = spaces[:maxSnakeLength-len(g.keys["fld_name"])]
+	}
+
+	for fieldName, typeValues := range g.typeDependent {
+		fieldValue := typeValues[g.currentField.Type]
+		if fieldValue == "" {
+			// get default value for this field
+			// TODO make this smarter w.r.t. maps and arrays?
+			fieldValue = typeValues[""]
+		}
+		g.keys[fieldName] = fieldValue
+
+		if fieldName[:3] == "fld" {
+			// we also want the 'fldKey' variant to facilitate the map key type
+			fieldValue = typeValues[g.currentField.MapKey]
+			if fieldValue == "" {
+				// get default value for this field
+				// TODO make this smarter w.r.t. maps and arrays?
+				fieldValue = typeValues[""]
+			}
+			g.keys["fldKey"+fieldName[3:]] = fieldValue
+		}
 	}
 }
 
-func (g *GenBase) setFuncKeys() {
+func (g *GenBase) setFuncKeys(pad bool, maxCamelLength, maxSnakeLength int) {
 	g.setMultiKeyValues("funcName", g.currentFunc.Name)
 	g.setMultiKeyValues("kind", g.currentFunc.Kind)
-	g.keys["funcHName"] = iscp.Hn(g.keys["funcName"]).String()
-	grant := g.currentFunc.Access
-	comment := ""
+	g.keys["hFuncName"] = iscp.Hn(g.keys["funcName"]).String()
+	grant := g.currentFunc.Access.Val
 	index := strings.Index(grant, "//")
 	if index >= 0 {
-		comment = grant[index:]
 		grant = strings.TrimSpace(grant[:index])
 	}
-	g.keys["funcAccess"] = grant
-	g.keys["funcAccessComment"] = comment
-
-	g.keys["funcPad"] = spaces[:g.maxCamelFuncLen-len(g.keys["funcName"])]
-	g.keys["func_pad"] = spaces[:g.maxSnakeFuncLen-len(g.keys["func_name"])]
+	g.setMultiKeyValues("funcAccess", grant)
+	g.keys["funcAccessComment"] = g.currentFunc.Access.Comment
+	g.keys["funcComment"] = g.currentFunc.Comment
+	if pad {
+		g.keys["funcPad"] = spaces[:maxCamelLength-len(g.keys["funcName"])]
+		g.keys["func_pad"] = spaces[:maxSnakeLength-len(g.keys["func_name"])]
+	}
 }
 
 func (g *GenBase) setMultiKeyValues(key, value string) {

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/iotaledger/wasp/contracts/wasm/testcore/go/testcore"
-	"github.com/iotaledger/wasp/packages/vm/core"
+	"github.com/iotaledger/wasp/packages/vm/core/corecontracts"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,17 +13,18 @@ func TestSpawn(t *testing.T) {
 		ctx := deployTestCore(t, w)
 
 		f := testcore.ScFuncs.Spawn(ctx)
-		f.Params.ProgHash().SetValue(ctx.Convertor.ScHash(ctx.Hprog))
-		f.Func.TransferIotas(1).Post()
+		f.Params.ProgHash().SetValue(ctx.Cvt.ScHash(ctx.Hprog))
+		f.Func.Post()
 		require.NoError(t, ctx.Err)
 
-		ctxSpawn := ctx.SoloContextForCore(t, testcore.ScName+"_spawned", testcore.OnLoad)
+		spawnedName := testcore.ScName + "_spawned"
+		ctxSpawn := ctx.SoloContextForCore(t, spawnedName, testcore.OnLoad)
 		require.NoError(t, ctxSpawn.Err)
 		v := testcore.ScFuncs.GetCounter(ctxSpawn)
 		v.Func.Call()
 		require.EqualValues(t, 5, v.Results.Counter().Value())
 
 		_, _, recs := ctx.Chain.GetInfo()
-		require.EqualValues(t, len(core.AllCoreContractsByHash)+2, len(recs))
+		require.EqualValues(t, len(corecontracts.All)+2, len(recs))
 	})
 }

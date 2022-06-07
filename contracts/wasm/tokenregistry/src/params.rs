@@ -9,103 +9,110 @@
 #![allow(unused_imports)]
 
 use wasmlib::*;
-use wasmlib::host::*;
-
 use crate::*;
-use crate::keys::*;
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableMintSupplyParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableMintSupplyParams {
+    // description what minted token represents
     pub fn description(&self) -> ScImmutableString {
-		ScImmutableString::new(self.id, idx_map(IDX_PARAM_DESCRIPTION))
+		ScImmutableString::new(self.proxy.root(PARAM_DESCRIPTION))
 	}
 
+    // any user defined text
     pub fn user_defined(&self) -> ScImmutableString {
-		ScImmutableString::new(self.id, idx_map(IDX_PARAM_USER_DEFINED))
+		ScImmutableString::new(self.proxy.root(PARAM_USER_DEFINED))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableMintSupplyParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableMintSupplyParams {
+    // description what minted token represents
     pub fn description(&self) -> ScMutableString {
-		ScMutableString::new(self.id, idx_map(IDX_PARAM_DESCRIPTION))
+		ScMutableString::new(self.proxy.root(PARAM_DESCRIPTION))
 	}
 
+    // any user defined text
     pub fn user_defined(&self) -> ScMutableString {
-		ScMutableString::new(self.id, idx_map(IDX_PARAM_USER_DEFINED))
+		ScMutableString::new(self.proxy.root(PARAM_USER_DEFINED))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableTransferOwnershipParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableTransferOwnershipParams {
-    pub fn color(&self) -> ScImmutableColor {
-		ScImmutableColor::new(self.id, idx_map(IDX_PARAM_COLOR))
+    // token of token to transfer ownership of
+    pub fn token(&self) -> ScImmutableTokenID {
+		ScImmutableTokenID::new(self.proxy.root(PARAM_TOKEN))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableTransferOwnershipParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableTransferOwnershipParams {
-    pub fn color(&self) -> ScMutableColor {
-		ScMutableColor::new(self.id, idx_map(IDX_PARAM_COLOR))
+    // token of token to transfer ownership of
+    pub fn token(&self) -> ScMutableTokenID {
+		ScMutableTokenID::new(self.proxy.root(PARAM_TOKEN))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableUpdateMetadataParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableUpdateMetadataParams {
-    pub fn color(&self) -> ScImmutableColor {
-		ScImmutableColor::new(self.id, idx_map(IDX_PARAM_COLOR))
+    // token of token to update metadata for
+    pub fn token(&self) -> ScImmutableTokenID {
+		ScImmutableTokenID::new(self.proxy.root(PARAM_TOKEN))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableUpdateMetadataParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableUpdateMetadataParams {
-    pub fn color(&self) -> ScMutableColor {
-		ScMutableColor::new(self.id, idx_map(IDX_PARAM_COLOR))
+    // token of token to update metadata for
+    pub fn token(&self) -> ScMutableTokenID {
+		ScMutableTokenID::new(self.proxy.root(PARAM_TOKEN))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableGetInfoParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableGetInfoParams {
-    pub fn color(&self) -> ScImmutableColor {
-		ScImmutableColor::new(self.id, idx_map(IDX_PARAM_COLOR))
+    // token of token to view registry info of
+    pub fn token(&self) -> ScImmutableTokenID {
+		ScImmutableTokenID::new(self.proxy.root(PARAM_TOKEN))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableGetInfoParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableGetInfoParams {
-    pub fn color(&self) -> ScMutableColor {
-		ScMutableColor::new(self.id, idx_map(IDX_PARAM_COLOR))
+    // token of token to view registry info of
+    pub fn token(&self) -> ScMutableTokenID {
+		ScMutableTokenID::new(self.proxy.root(PARAM_TOKEN))
 	}
 }

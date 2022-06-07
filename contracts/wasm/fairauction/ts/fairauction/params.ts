@@ -5,89 +5,95 @@
 // >>>> DO NOT CHANGE THIS FILE! <<<<
 // Change the json schema instead
 
-import * as wasmlib from "wasmlib";
+import * as wasmtypes from "wasmlib/wasmtypes";
 import * as sc from "./index";
 
-export class ImmutableFinalizeAuctionParams extends wasmlib.ScMapID {
-    color(): wasmlib.ScImmutableColor {
-		return new wasmlib.ScImmutableColor(this.mapID, sc.idxMap[sc.IdxParamColor]);
+export class ImmutableFinalizeAuctionParams extends wasmtypes.ScProxy {
+	// NFT identifies the auction
+	nft(): wasmtypes.ScImmutableNftID {
+		return new wasmtypes.ScImmutableNftID(this.proxy.root(sc.ParamNft));
 	}
 }
 
-export class MutableFinalizeAuctionParams extends wasmlib.ScMapID {
-    color(): wasmlib.ScMutableColor {
-		return new wasmlib.ScMutableColor(this.mapID, sc.idxMap[sc.IdxParamColor]);
+export class MutableFinalizeAuctionParams extends wasmtypes.ScProxy {
+	// NFT identifies the auction
+	nft(): wasmtypes.ScMutableNftID {
+		return new wasmtypes.ScMutableNftID(this.proxy.root(sc.ParamNft));
 	}
 }
 
-export class ImmutablePlaceBidParams extends wasmlib.ScMapID {
-    color(): wasmlib.ScImmutableColor {
-		return new wasmlib.ScImmutableColor(this.mapID, sc.idxMap[sc.IdxParamColor]);
+export class ImmutablePlaceBidParams extends wasmtypes.ScProxy {
+	// NFT identifies the auction
+	nft(): wasmtypes.ScImmutableNftID {
+		return new wasmtypes.ScImmutableNftID(this.proxy.root(sc.ParamNft));
 	}
 }
 
-export class MutablePlaceBidParams extends wasmlib.ScMapID {
-    color(): wasmlib.ScMutableColor {
-		return new wasmlib.ScMutableColor(this.mapID, sc.idxMap[sc.IdxParamColor]);
+export class MutablePlaceBidParams extends wasmtypes.ScProxy {
+	// NFT identifies the auction
+	nft(): wasmtypes.ScMutableNftID {
+		return new wasmtypes.ScMutableNftID(this.proxy.root(sc.ParamNft));
 	}
 }
 
-export class ImmutableSetOwnerMarginParams extends wasmlib.ScMapID {
-    ownerMargin(): wasmlib.ScImmutableInt64 {
-		return new wasmlib.ScImmutableInt64(this.mapID, sc.idxMap[sc.IdxParamOwnerMargin]);
+export class ImmutableSetOwnerMarginParams extends wasmtypes.ScProxy {
+	// new SC owner margin in promilles
+	ownerMargin(): wasmtypes.ScImmutableUint64 {
+		return new wasmtypes.ScImmutableUint64(this.proxy.root(sc.ParamOwnerMargin));
 	}
 }
 
-export class MutableSetOwnerMarginParams extends wasmlib.ScMapID {
-    ownerMargin(): wasmlib.ScMutableInt64 {
-		return new wasmlib.ScMutableInt64(this.mapID, sc.idxMap[sc.IdxParamOwnerMargin]);
+export class MutableSetOwnerMarginParams extends wasmtypes.ScProxy {
+	// new SC owner margin in promilles
+	ownerMargin(): wasmtypes.ScMutableUint64 {
+		return new wasmtypes.ScMutableUint64(this.proxy.root(sc.ParamOwnerMargin));
 	}
 }
 
-export class ImmutableStartAuctionParams extends wasmlib.ScMapID {
-    color(): wasmlib.ScImmutableColor {
-		return new wasmlib.ScImmutableColor(this.mapID, sc.idxMap[sc.IdxParamColor]);
+export class ImmutableStartAuctionParams extends wasmtypes.ScProxy {
+	// description of the NFTs being auctioned
+	description(): wasmtypes.ScImmutableString {
+		return new wasmtypes.ScImmutableString(this.proxy.root(sc.ParamDescription));
 	}
 
-    description(): wasmlib.ScImmutableString {
-		return new wasmlib.ScImmutableString(this.mapID, sc.idxMap[sc.IdxParamDescription]);
+	// duration of auction in minutes
+	duration(): wasmtypes.ScImmutableUint32 {
+		return new wasmtypes.ScImmutableUint32(this.proxy.root(sc.ParamDuration));
 	}
 
-    duration(): wasmlib.ScImmutableInt32 {
-		return new wasmlib.ScImmutableInt32(this.mapID, sc.idxMap[sc.IdxParamDuration]);
-	}
-
-    minimumBid(): wasmlib.ScImmutableInt64 {
-		return new wasmlib.ScImmutableInt64(this.mapID, sc.idxMap[sc.IdxParamMinimumBid]);
-	}
-}
-
-export class MutableStartAuctionParams extends wasmlib.ScMapID {
-    color(): wasmlib.ScMutableColor {
-		return new wasmlib.ScMutableColor(this.mapID, sc.idxMap[sc.IdxParamColor]);
-	}
-
-    description(): wasmlib.ScMutableString {
-		return new wasmlib.ScMutableString(this.mapID, sc.idxMap[sc.IdxParamDescription]);
-	}
-
-    duration(): wasmlib.ScMutableInt32 {
-		return new wasmlib.ScMutableInt32(this.mapID, sc.idxMap[sc.IdxParamDuration]);
-	}
-
-    minimumBid(): wasmlib.ScMutableInt64 {
-		return new wasmlib.ScMutableInt64(this.mapID, sc.idxMap[sc.IdxParamMinimumBid]);
+	// minimum required amount for any bid
+	minimumBid(): wasmtypes.ScImmutableUint64 {
+		return new wasmtypes.ScImmutableUint64(this.proxy.root(sc.ParamMinimumBid));
 	}
 }
 
-export class ImmutableGetInfoParams extends wasmlib.ScMapID {
-    color(): wasmlib.ScImmutableColor {
-		return new wasmlib.ScImmutableColor(this.mapID, sc.idxMap[sc.IdxParamColor]);
+export class MutableStartAuctionParams extends wasmtypes.ScProxy {
+	// description of the NFTs being auctioned
+	description(): wasmtypes.ScMutableString {
+		return new wasmtypes.ScMutableString(this.proxy.root(sc.ParamDescription));
+	}
+
+	// duration of auction in minutes
+	duration(): wasmtypes.ScMutableUint32 {
+		return new wasmtypes.ScMutableUint32(this.proxy.root(sc.ParamDuration));
+	}
+
+	// minimum required amount for any bid
+	minimumBid(): wasmtypes.ScMutableUint64 {
+		return new wasmtypes.ScMutableUint64(this.proxy.root(sc.ParamMinimumBid));
 	}
 }
 
-export class MutableGetInfoParams extends wasmlib.ScMapID {
-    color(): wasmlib.ScMutableColor {
-		return new wasmlib.ScMutableColor(this.mapID, sc.idxMap[sc.IdxParamColor]);
+export class ImmutableGetAuctionInfoParams extends wasmtypes.ScProxy {
+	// NFT identifies the auction
+	nft(): wasmtypes.ScImmutableNftID {
+		return new wasmtypes.ScImmutableNftID(this.proxy.root(sc.ParamNft));
+	}
+}
+
+export class MutableGetAuctionInfoParams extends wasmtypes.ScProxy {
+	// NFT identifies the auction
+	nft(): wasmtypes.ScMutableNftID {
+		return new wasmtypes.ScMutableNftID(this.proxy.root(sc.ParamNft));
 	}
 }

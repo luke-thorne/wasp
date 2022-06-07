@@ -1,3 +1,6 @@
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 package templates
 
 type WaspConfigParams struct {
@@ -5,18 +8,18 @@ type WaspConfigParams struct {
 	DashboardPort                int
 	PeeringPort                  int
 	NanomsgPort                  int
-	Neighbors                    string
-	TxStreamPort                 int
-	TxStreamHost                 string
+	L1APIAddress                 string
+	L1UseRemotePow               bool
 	ProfilingPort                int
 	MetricsPort                  int
 	OffledgerBroadcastUpToNPeers int
+	OwnerAddress                 string
 }
 
 const WaspConfig = `
 {
   "database": {
-    "inMemory": true,
+    "inMemory": false,
     "directory": "waspdb"
   },
   "logger": {
@@ -36,21 +39,28 @@ const WaspConfig = `
   },
   "node": {
     "disablePlugins": [],
-    "enablePlugins": []
+    "enablePlugins": [],
+    "ownerAddresses": ["{{.OwnerAddress}}"]
   },
   "webapi": {
+    "auth": {
+      "scheme": "none"
+    },
     "bindAddress": "0.0.0.0:{{.APIPort}}"
   },
   "dashboard": {
+    "auth": {
+      "scheme": "none"
+    },
     "bindAddress": "0.0.0.0:{{.DashboardPort}}"
   },
   "peering":{
     "port": {{.PeeringPort}},
-    "netid": "127.0.0.1:{{.PeeringPort}}",
-    "neighbors": [{{.Neighbors}}]
+    "netid": "127.0.0.1:{{.PeeringPort}}"
   },
-  "nodeconn": {
-    "address": "{{.TxStreamHost}}:{{.TxStreamPort}}"
+  "l1": {
+    "apiAddress": "{{.L1APIAddress}}",
+    "useRemotePow": {{.L1UseRemotePow}}
   },
   "nanomsg":{
     "port": {{.NanomsgPort}}
@@ -66,6 +76,14 @@ const WaspConfig = `
   "metrics": {
     "bindAddress": "0.0.0.0:{{.MetricsPort}}",
     "enabled": false
+  },
+  "wal": {
+    "directory": "wal",
+    "enabled": true
+  },
+  "debug": {
+    "rawblocksEnabled": false,
+    "rawblocksDirectory": "blocks"
   }
 }
 `

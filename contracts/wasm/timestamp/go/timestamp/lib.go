@@ -7,48 +7,52 @@
 
 package timestamp
 
-import "github.com/iotaledger/wasp/packages/vm/wasmlib/go/wasmlib"
+import "github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib"
 
-func OnLoad() {
-	exports := wasmlib.NewScExports()
-	exports.AddFunc(FuncNow, funcNowThunk)
-	exports.AddView(ViewGetTimestamp, viewGetTimestampThunk)
+var exportMap = wasmlib.ScExportMap{
+	Names: []string{
+		FuncNow,
+		ViewGetTimestamp,
+	},
+	Funcs: []wasmlib.ScFuncContextFunction{
+		funcNowThunk,
+	},
+	Views: []wasmlib.ScViewContextFunction{
+		viewGetTimestampThunk,
+	},
+}
 
-	for i, key := range keyMap {
-		idxMap[i] = key.KeyID()
+func OnLoad(index int32) {
+	if index >= 0 {
+		wasmlib.ScExportsCall(index, &exportMap)
+		return
 	}
+
+	wasmlib.ScExportsExport(&exportMap)
 }
 
-type NowContext struct {
-	State MutabletimestampState
-}
+type NowContext struct{}
 
 func funcNowThunk(ctx wasmlib.ScFuncContext) {
 	ctx.Log("timestamp.funcNow")
-	f := &NowContext{
-		State: MutabletimestampState{
-			id: wasmlib.OBJ_ID_STATE,
-		},
-	}
+	f := &NowContext{}
 	funcNow(ctx, f)
 	ctx.Log("timestamp.funcNow ok")
 }
 
 type GetTimestampContext struct {
 	Results MutableGetTimestampResults
-	State   ImmutabletimestampState
 }
 
 func viewGetTimestampThunk(ctx wasmlib.ScViewContext) {
 	ctx.Log("timestamp.viewGetTimestamp")
+	results := wasmlib.NewScDict()
 	f := &GetTimestampContext{
 		Results: MutableGetTimestampResults{
-			id: wasmlib.OBJ_ID_RESULTS,
-		},
-		State: ImmutabletimestampState{
-			id: wasmlib.OBJ_ID_STATE,
+			proxy: results.AsProxy(),
 		},
 	}
 	viewGetTimestamp(ctx, f)
+	ctx.Results(results)
 	ctx.Log("timestamp.viewGetTimestamp ok")
 }

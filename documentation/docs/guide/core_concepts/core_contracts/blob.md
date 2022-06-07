@@ -9,10 +9,11 @@ keywords:
 - get
 - entry points
 - views
+- reference
 --- 
 # The `blob` Contract
 
-The `blob` contract is one of the [core contracts](overview.md) on each ISCP chain.
+The `blob` contract is one of the [core contracts](overview.md) on each IOTA Smart Contracts chain.
 
 The function of the `blob` contract is to maintain an on-chain registry of
 _blobs_, a collections of arbitrary binary data. Smart contracts reference _blobs_ via their hashes.

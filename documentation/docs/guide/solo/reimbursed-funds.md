@@ -33,7 +33,7 @@ func TestTutorial7(t *testing.T) {
  userAgentID := iscp.NewAgentID(userAddress, 0)
 
  // we start with these balances on address and on chain
- env.AssertAddressBalance(userAddress, colored.IOTA, solo.Saldo)
+ env.AssertAddressBalance(userAddress, colored.IOTA, utxodb.FundsFromFaucetAmount)
  chain.AssertAccountBalance(contractAgentID, colored.IOTA, 0) // empty
  chain.AssertAccountBalance(userAgentID, colored.IOTA, 0)     // empty
 
@@ -43,7 +43,7 @@ func TestTutorial7(t *testing.T) {
  require.Error(t, err)
 
  // assert balances didn't change on address and on chain
- env.AssertAddressBalance(userAddress, colored.IOTA, solo.Saldo)
+ env.AssertAddressBalance(userAddress, colored.IOTA, utxodb.FundsFromFaucetAmount)
  chain.AssertAccountBalance(contractAgentID, colored.IOTA, 0) // still empty
  chain.AssertAccountBalance(userAgentID, colored.IOTA, 0)     // still empty
 }
@@ -59,5 +59,5 @@ The programmer forgets the parameter `paramString` and the program panics:
 
 You can see that all sent 42 tokens are returned to the sender's address.
 
-In case of panic in the smart contract for whatever reason, the fallback logic of the ISCP VM:
+In case of panic in the smart contract for whatever reason, the fallback logic of the IOTA Smart Contracts VM:
 returns all tokens (minus fees) to the sender (to the sender's address in the example above).

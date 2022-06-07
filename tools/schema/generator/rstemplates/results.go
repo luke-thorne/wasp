@@ -1,3 +1,6 @@
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 package rstemplates
 
 var resultsRs = map[string]string{
@@ -6,18 +9,9 @@ var resultsRs = map[string]string{
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
-$#if core useCrate useWasmLib
-$#if core useCoreContract
-$#if core useHost resultsUses
-$#each func resultsFunc
-`,
-	// *******************************
-	"resultsUses": `
-use wasmlib::host::*;
-
+$#if core useCoreContract useWasmLib
 use crate::*;
-use crate::keys::*;
-$#if structs useStructs
+$#each func resultsFunc
 `,
 	// *******************************
 	"resultsFunc": `
@@ -36,9 +30,9 @@ $#if result resultsProxyStruct
 $#set TypeName $mut$FuncName$+Results
 $#each result proxyContainers
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct $TypeName {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl $TypeName {

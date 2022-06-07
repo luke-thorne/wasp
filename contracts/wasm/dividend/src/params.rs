@@ -9,103 +9,110 @@
 #![allow(unused_imports)]
 
 use wasmlib::*;
-use wasmlib::host::*;
-
 use crate::*;
-use crate::keys::*;
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableInitParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableInitParams {
+    // optional owner of contract, defaults to contract creator
     pub fn owner(&self) -> ScImmutableAgentID {
-		ScImmutableAgentID::new(self.id, idx_map(IDX_PARAM_OWNER))
+		ScImmutableAgentID::new(self.proxy.root(PARAM_OWNER))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableInitParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableInitParams {
+    // optional owner of contract, defaults to contract creator
     pub fn owner(&self) -> ScMutableAgentID {
-		ScMutableAgentID::new(self.id, idx_map(IDX_PARAM_OWNER))
+		ScMutableAgentID::new(self.proxy.root(PARAM_OWNER))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableMemberParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableMemberParams {
+    // address of dividend recipient
     pub fn address(&self) -> ScImmutableAddress {
-		ScImmutableAddress::new(self.id, idx_map(IDX_PARAM_ADDRESS))
+		ScImmutableAddress::new(self.proxy.root(PARAM_ADDRESS))
 	}
 
-    pub fn factor(&self) -> ScImmutableInt64 {
-		ScImmutableInt64::new(self.id, idx_map(IDX_PARAM_FACTOR))
+    // relative division factor
+    pub fn factor(&self) -> ScImmutableUint64 {
+		ScImmutableUint64::new(self.proxy.root(PARAM_FACTOR))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableMemberParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableMemberParams {
+    // address of dividend recipient
     pub fn address(&self) -> ScMutableAddress {
-		ScMutableAddress::new(self.id, idx_map(IDX_PARAM_ADDRESS))
+		ScMutableAddress::new(self.proxy.root(PARAM_ADDRESS))
 	}
 
-    pub fn factor(&self) -> ScMutableInt64 {
-		ScMutableInt64::new(self.id, idx_map(IDX_PARAM_FACTOR))
+    // relative division factor
+    pub fn factor(&self) -> ScMutableUint64 {
+		ScMutableUint64::new(self.proxy.root(PARAM_FACTOR))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableSetOwnerParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableSetOwnerParams {
+    // new owner of smart contract
     pub fn owner(&self) -> ScImmutableAgentID {
-		ScImmutableAgentID::new(self.id, idx_map(IDX_PARAM_OWNER))
+		ScImmutableAgentID::new(self.proxy.root(PARAM_OWNER))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableSetOwnerParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableSetOwnerParams {
+    // new owner of smart contract
     pub fn owner(&self) -> ScMutableAgentID {
-		ScMutableAgentID::new(self.id, idx_map(IDX_PARAM_OWNER))
+		ScMutableAgentID::new(self.proxy.root(PARAM_OWNER))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableGetFactorParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableGetFactorParams {
+    // address of dividend recipient
     pub fn address(&self) -> ScImmutableAddress {
-		ScImmutableAddress::new(self.id, idx_map(IDX_PARAM_ADDRESS))
+		ScImmutableAddress::new(self.proxy.root(PARAM_ADDRESS))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableGetFactorParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableGetFactorParams {
+    // address of dividend recipient
     pub fn address(&self) -> ScMutableAddress {
-		ScMutableAddress::new(self.id, idx_map(IDX_PARAM_ADDRESS))
+		ScMutableAddress::new(self.proxy.root(PARAM_ADDRESS))
 	}
 }

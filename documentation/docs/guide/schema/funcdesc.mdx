@@ -37,7 +37,7 @@ in `contract.xx`:
 ```go
 package dividend
 
-import "github.com/iotaledger/wasp/packages/vm/wasmlib"
+import "github.com/iotaledger/wasp/packages/wasmvm/wasmlib"
 
 type DivideCall struct {
     Func *wasmlib.ScFunc
@@ -195,7 +195,7 @@ impl ScFuncs {
 <TabItem value="ts">
 
 ```ts
-import * as wasmlib from "../wasmlib"
+import * as wasmlib from "wasmlib"
 import * as sc from "./index";
 
 export class DivideCall {

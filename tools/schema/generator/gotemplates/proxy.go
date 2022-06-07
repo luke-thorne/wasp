@@ -1,3 +1,6 @@
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 package gotemplates
 
 var proxyGo = map[string]string{
@@ -8,8 +11,8 @@ $#if map typedefProxyMap
 `,
 	// *******************************
 	"proxyMethods": `
-$#set varID idxMap[Idx$Kind$FldName]
-$#if core setCoreVarID
+
+$#each fldComment _fldComment
 $#if array proxyArray proxyMethods2
 `,
 	// *******************************
@@ -18,18 +21,12 @@ $#if map proxyMap proxyMethods3
 `,
 	// *******************************
 	"proxyMethods3": `
-$#if basetype proxyBaseType proxyNewType
-`,
-	// *******************************
-	"setCoreVarID": `
-$#set varID wasmlib.KeyID($Kind$FldName)
+$#if basetype proxyBaseType proxyOtherType
 `,
 	// *******************************
 	"proxyArray": `
-
 func (s $TypeName) $FldName() ArrayOf$mut$FldType {
-	arrID := wasmlib.GetObjectID(s.id, $varID, $arrayTypeID|$fldTypeID)
-	return ArrayOf$mut$FldType{objID: arrID}
+	return ArrayOf$mut$FldType{proxy: s.proxy.Root($Kind$FldName)}
 }
 `,
 	// *******************************
@@ -38,31 +35,26 @@ $#if this proxyMapThis proxyMapOther
 `,
 	// *******************************
 	"proxyMapThis": `
-
-func (s $TypeName) $FldName() Map$fldMapKey$+To$mut$FldType {
-	return Map$fldMapKey$+To$mut$FldType{objID: s.id}
+func (s $TypeName) $FldName() Map$FldMapKey$+To$mut$FldType {
+	return Map$FldMapKey$+To$mut$FldType{proxy: s.proxy}
 }
 `,
 	// *******************************
-	"proxyMapOther": `55544444.0
-
-func (s $TypeName) $FldName() Map$fldMapKey$+To$mut$FldType {
-	mapID := wasmlib.GetObjectID(s.id, $varID, wasmlib.TYPE_MAP)
-	return Map$fldMapKey$+To$mut$FldType{objID: mapID}
+	"proxyMapOther": `
+func (s $TypeName) $FldName() Map$FldMapKey$+To$mut$FldType {
+	return Map$FldMapKey$+To$mut$FldType{proxy: s.proxy.Root($Kind$FldName)}
 }
 `,
 	// *******************************
 	"proxyBaseType": `
-
-func (s $TypeName) $FldName() wasmlib.Sc$mut$FldType {
-	return wasmlib.NewSc$mut$FldType(s.id, $varID)
+func (s $TypeName) $FldName() wasmtypes.Sc$mut$FldType {
+	return wasmtypes.NewSc$mut$FldType(s.proxy.Root($Kind$FldName))
 }
 `,
 	// *******************************
-	"proxyNewType": `
-
+	"proxyOtherType": `
 func (s $TypeName) $FldName() $mut$FldType {
-	return $mut$FldType{objID: s.id, keyID: $varID}
+	return $mut$FldType{proxy: s.proxy.Root($Kind$FldName)}
 }
 `,
 }

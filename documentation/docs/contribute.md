@@ -1,88 +1,131 @@
 ---
+description:  How to contribute to IOTA Smart Contracts. How to create better pull requests by running tests and the linter locally.
+image: /img/logo/WASP_logo_dark.png
 keywords:
-- ISCP
-- Smart Contracts
+- smart contracts
 - Contribute
-- Pull Request
-- Linting
+- pull request
+- linting
 - Go-lang
 - golangci-lint
-description:  How to contribute to ISCP. Creating a PR, setting up golangci-lint.  
-image: /img/logo/WASP_logo_dark.png
+- how to
 ---
 
 # Contributing
 
-If you want to contribute to this repository, consider posting a [bug report](https://github.com/iotaledger/wasp/issues/new-issue), feature request or a [pull request](https://github.com/iotaledger/wasp/pulls/).
+If you want to contribute to this repository, consider posting a [bug report](https://github.com/iotaledger/wasp/issues/new-issue), feature request, or a [pull request](https://github.com/iotaledger/wasp/pulls/).
 
-You can also join our [Discord server](https://discord.iota.org/) and ping us
-in `#smartcontracts-dev`.
+You can talk to us directly on our [Discord server](https://discord.iota.org/), in the `#smartcontracts-dev` channel.
 
 ## Creating a Pull Request
 
 Please base your work on the `develop` branch.
 
-Before creating the Pull Request ensure that:
+Before creating a pull request ensure that all tests pass locally, and that the linter reports no violations.
 
-- all the tests pass:
+## Running Tests
 
-    ```bash
-    go test -tags rocksdb,builtin_static ./...
-    ```
+To run tests locally, execute one of the following commands:
 
-- there are no linting violations (instructions on how to setup linting below):
+```shell
+go test -tags rocksdb,builtin_static ./...
+```
 
-    ```bash
-    golangci-lint run
-    ```
+or, as an alternative:
 
-### Lint Setup
+```shell
+make test
+```
 
-1. Install golintci:
+The commands above only trigger lightweight tests. If you have introduced major changes, consider running the whole test suite instead. That it will much longer (and will time out after an hour).
 
-    https://golangci-lint.run/usage/install/#local-installation
+::: warn
 
-2. Dev setup:
+Check that the `database.inMemory` parameter is set to `false` (default) before running the complete test suite. See the [source code](https://github.com/iotaledger/wasp/blob/develop/tools/cluster/tests/spam_test.go) for details.
 
-    https://golangci-lint.run/usage/integrations/#editor-integration
+:::
 
-    **VSCode**:
+```shell
+make test-full
+```
 
-    ```json
-    // required:
-    "go.lintTool": "golangci-lint",
-    // recommended:
-    "go.lintOnSave": "package"
-    "go.lintFlags": ["--fix"],
-    "editor.formatOnSave": true,
-    ```
+## Running the Linter
 
-    **GoLand**:
+### Setup
 
-    - [Install golintci plugin](https://plugins.jetbrains.com/plugin/12496-go-linter)
+#### Step 1: Install golintci
 
-        ![Install golintci plugin](../static/img/contributing/golintci-goland-1.png)
+See the [provider instructions](https://golangci-lint.run/usage/install/#local-installation) on how to install golintci.
 
-    - Configure path for golangci
+#### Step 2: Set Up Your Environment
 
-        ![Configure path for golangci](../static/img/contributing/golintci-goland-2.png)
+See the [provider instructions](https://golangci-lint.run/usage/integrations/#editor-integration) on how to integrate golintci into your source code editor. You can also find our [recommended settings](#appendix-recommended-settings) for VS Code and GoLand at the bottom of this article.
 
-    - Add a golangci file watcher with custom command (I recommend using --fix)
+### Usage
 
-        ![Add a golangci file watcher with custom command](../static/img/contributing/golintci-goland-3.png)
+To run the linter locally, execute:
 
-    **Other editors**: please look into the [`golangci` official documentation](https://github.com/golangci/golangci-lint).
+```shell
+golangci-lint run
+```
 
-3. Ignoring false positives:
+or
 
-    https://golangci-lint.run/usage/false-positives/
+```shell
+make lint
+```
 
-    ```go
-    //nolint
-    ```
+The linter will also automatically run every time you run:
 
-    for specific rules:
+```shell
+make
+```
 
-    ```go
-    //nolint:golint,unused
-    ```
+### False Positives
+
+You can [disable](https://golangci-lint.run/usage/false-positives/) false positives by placing a special comment directly above the "violating" element:
+
+```go
+//nolint
+func foobar() *string {
+    // ...
+}
+```
+
+To be sure that linter will not ignore actual issues in the future, try to suppress only relevant warnings over an element:
+
+```go
+//nolint:golint,unused
+func neverUsedFoobar() *string {
+    // ...
+}
+```
+
+## Appendix: Recommended Settings
+
+### Visual Studio Code
+
+Adjust your VS Code settings as follows:
+
+```json
+// required:
+"go.lintTool": "golangci-lint",
+// recommended:
+"go.lintOnSave": "package"
+"go.lintFlags": ["--fix"],
+"editor.formatOnSave": true,
+```
+
+### GoLand
+
+1. Install the [golintci](https://plugins.jetbrains.com/plugin/12496-go-linter) plugin.
+
+![A screenshot that shows how to install golintci in GoLand.](/img/contributing/golintci-goland-1.png "Click to see the full-sized image.")
+
+2. Configure path for golangci.
+
+![A screenshot that shows how to configure path for golangci in GoLand.](/img/contributing/golintci-goland-2.png "Click to see the full-sized image.")
+
+3. Add a golangci file watcher with a custom command. We recommend you to use it with the `--fix` parameter.
+
+![A screenshot that shows how to add a golangci file watcher in GoLand.](/img/contributing/golintci-goland-3.png "Click to see the full-sized image.")

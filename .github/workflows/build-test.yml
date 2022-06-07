@@ -3,9 +3,6 @@ name: Test
 on:
   pull_request:
     branches: [develop]
-    paths-ignore:
-      - 'documentation/**'
-      - 'temupdates/**'
 
 jobs:
   build:
@@ -18,7 +15,7 @@ jobs:
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
         with:
-          go-version: ^1.15
+          go-version: ^1.18
         id: go
 
       - name: Check out code into the Go module directory
@@ -31,7 +28,7 @@ jobs:
         run: make build
 
       - name: Test
-        run: go test -tags rocksdb,builtin_static -v -short -failfast ./...
+        run: make test-short
 
   golangci:
     name: lint
@@ -39,14 +36,14 @@ jobs:
     steps:
       - uses: actions/setup-go@v2
         with:
-          go-version: ^1.15
+          go-version: ^1.18
         id: go
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2
+        uses: golangci/golangci-lint-action@v3.1.0
         with:
           version: latest
           args: --timeout 5m0s

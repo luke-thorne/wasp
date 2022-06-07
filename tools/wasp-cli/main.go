@@ -5,10 +5,12 @@ package main
 
 import (
 	"github.com/iotaledger/wasp/packages/wasp"
+	"github.com/iotaledger/wasp/tools/wasp-cli/authentication"
 	"github.com/iotaledger/wasp/tools/wasp-cli/chain"
 	"github.com/iotaledger/wasp/tools/wasp-cli/config"
 	"github.com/iotaledger/wasp/tools/wasp-cli/decode"
 	"github.com/iotaledger/wasp/tools/wasp-cli/log"
+	"github.com/iotaledger/wasp/tools/wasp-cli/metrics"
 	"github.com/iotaledger/wasp/tools/wasp-cli/peering"
 	"github.com/iotaledger/wasp/tools/wasp-cli/wallet"
 	"github.com/spf13/cobra"
@@ -29,12 +31,14 @@ NOTE: this is alpha software, only suitable for testing purposes.`,
 }
 
 func init() {
+	authentication.Init(rootCmd)
 	log.Init(rootCmd)
 	config.Init(rootCmd)
 	wallet.Init(rootCmd)
 	chain.Init(rootCmd)
 	decode.Init(rootCmd)
 	peering.Init(rootCmd)
+	metrics.Init(rootCmd)
 }
 
 func main() {

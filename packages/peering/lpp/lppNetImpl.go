@@ -21,16 +21,15 @@ package lpp
 import (
 	"context"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"net"
 	"sync"
 	"time"
 
-	"github.com/iotaledger/hive.go/crypto/ed25519"
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/hive.go/logger"
+	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/packages/peering"
 	"github.com/iotaledger/wasp/packages/peering/domain"
 	"github.com/iotaledger/wasp/packages/peering/group"
@@ -65,26 +64,31 @@ type netImpl struct {
 	peers       map[libp2ppeer.ID]*peer // By remotePeer.ID()
 	peersLock   *sync.RWMutex
 	recvEvents  *events.Event // Used to publish events to all attached clients.
-	nodeKeyPair *ed25519.KeyPair
+	nodeKeyPair *cryptolib.KeyPair
 	trusted     peering.TrustedNetworkManager
 	log         *logger.Logger
 }
+
+var (
+	_ peering.NetworkProvider = &netImpl{}
+	_ peering.PeerSender      = &netImpl{}
+)
 
 // NewNetworkProvider is a constructor for the TCP based
 // peering network implementation.
 func NewNetworkProvider(
 	myNetID string,
 	port int,
-	nodeKeyPair *ed25519.KeyPair,
+	nodeKeyPair *cryptolib.KeyPair,
 	trusted peering.TrustedNetworkManager,
 	log *logger.Logger,
 ) (peering.NetworkProvider, peering.TrustedNetworkManager, error) {
-	privKey, err := crypto.UnmarshalEd25519PrivateKey(nodeKeyPair.PrivateKey.Bytes())
+	privKey, err := crypto.UnmarshalEd25519PrivateKey(nodeKeyPair.GetPrivateKey().AsBytes())
 	if err != nil {
 		return nil, nil, xerrors.Errorf("unable to convert the private key: %w", err)
 	}
 	ctx, ctxCancel := context.WithCancel(context.Background())
-	lppHost, err := libp2p.New(ctx,
+	lppHost, err := libp2p.New(
 		libp2p.Identity(privKey),
 		libp2p.ListenAddrStrings(
 			fmt.Sprintf("/ip4/0.0.0.0/udp/%v/quic", port),
@@ -180,7 +184,7 @@ func (n *netImpl) lppAddToPeerStore(trustedPeer *peering.TrustedPeer) (libp2ppee
 }
 
 func (n *netImpl) lppTrustedPeerID(trustedPeer *peering.TrustedPeer) (libp2ppeer.ID, crypto.PubKey, error) {
-	lppPeerPub, err := crypto.UnmarshalEd25519PublicKey(trustedPeer.PubKey.Bytes())
+	lppPeerPub, err := crypto.UnmarshalEd25519PublicKey(trustedPeer.PubKey.AsBytes())
 	if err != nil {
 		return libp2ppeer.ID(""), nil, xerrors.Errorf("failed to convert pub key: %w", err)
 	}
@@ -208,9 +212,9 @@ func (n *netImpl) lppPeeringProtocolHandler(stream network.Stream) {
 		n.log.Warnf("Failed to read incoming payload from %v, reason=%v", remotePeer.remoteNetID, err)
 		return
 	}
-	peerMsg, err := peering.NewPeerMessageFromBytes(payload) // Do not use the signatures, we have TLS.
+	peerMsg, err := peering.NewPeerMessageNetFromBytes(payload) // Do not use the signatures, we have TLS.
 	if err != nil {
-		n.log.Warnf("Error while decoding a message, reason=%v", err)
+		n.log.Warnf("error while decoding a message, reason=%v", err)
 		return
 	}
 	remotePeer.RecvMsg(peerMsg)
@@ -272,7 +276,7 @@ func (n *netImpl) addPeer(trustedPeer *peering.TrustedPeer) error {
 		p.trust(true)                 // It might be distrusted previously.
 		p.setNetID(trustedPeer.NetID) // It might be changed.
 	} else {
-		p = newPeer(trustedPeer.NetID, &trustedPeer.PubKey, lppPeerID, n)
+		p = newPeer(trustedPeer.NetID, trustedPeer.PubKey, lppPeerID, n)
 		n.peers[lppPeerID] = p
 	}
 	return nil
@@ -289,19 +293,19 @@ func (n *netImpl) delPeer(peer *peer) {
 
 // A handler suitable for events.NewEvent().
 func (n *netImpl) eventHandler(handler interface{}, params ...interface{}) {
-	callback := handler.(func(_ *peering.RecvEvent))
-	recvEvent := params[0].(*peering.RecvEvent)
+	callback := handler.(func(_ *peering.PeerMessageIn))
+	recvEvent := params[0].(*peering.PeerMessageIn)
 	callback(recvEvent)
 }
 
 // Run starts listening and communicating with the network.
-func (n *netImpl) Run(shutdownSignal <-chan struct{}) {
+func (n *netImpl) Run(ctx context.Context) {
 	queueRecvStopCh := make(chan bool)
 	receiveStopCh := make(chan bool)
 	maintenanceStopCh := make(chan bool)
 	go n.maintenanceLoop(maintenanceStopCh)
 
-	<-shutdownSignal
+	<-ctx.Done()
 	n.ctxCancel()
 	close(maintenanceStopCh)
 	close(receiveStopCh)
@@ -314,37 +318,48 @@ func (n *netImpl) Self() peering.PeerSender {
 }
 
 // Group creates peering.GroupProvider.
-func (n *netImpl) PeerGroup(peerNetIDs []string) (peering.GroupProvider, error) {
+func (n *netImpl) PeerGroup(peeringID peering.PeeringID, peerPubKeys []*cryptolib.PublicKey) (peering.GroupProvider, error) {
 	var err error
-	groupPeers := make([]peering.PeerSender, len(peerNetIDs))
-	for i := range peerNetIDs {
-		if groupPeers[i], err = n.usePeer(peerNetIDs[i]); err != nil {
+	groupPeers := make([]peering.PeerSender, len(peerPubKeys))
+	for i := range peerPubKeys {
+		if groupPeers[i], err = n.usePeer(peerPubKeys[i]); err != nil {
 			return nil, err
 		}
 	}
-	return group.NewPeeringGroupProvider(n, groupPeers, n.log)
+	return group.NewPeeringGroupProvider(n, peeringID, groupPeers, n.log)
 }
 
 // Domain creates peering.PeerDomainProvider.
-func (n *netImpl) PeerDomain(peerNetIDs []string) (peering.PeerDomainProvider, error) {
-	peers := make([]peering.PeerSender, 0, len(peerNetIDs))
-	for _, nid := range peerNetIDs {
-		if nid == n.Self().NetID() {
+func (n *netImpl) PeerDomain(peeringID peering.PeeringID, peerPubKeys []*cryptolib.PublicKey) (peering.PeerDomainProvider, error) {
+	peers := make([]peering.PeerSender, 0, len(peerPubKeys))
+	for _, peerPubKey := range peerPubKeys {
+		if peerPubKey.Equals(n.Self().PubKey()) {
 			continue
 		}
-		p, err := n.usePeer(nid)
+		p, err := n.usePeer(peerPubKey)
 		if err != nil {
 			return nil, err
 		}
 		peers = append(peers, p)
 	}
-	return domain.NewPeerDomain(n, peers, n.log), nil
+	return domain.NewPeerDomain(n, peeringID, peers, n.log), nil
+}
+
+// SendMsgByPubKey sends a message to the specified peer.
+func (n *netImpl) SendMsgByPubKey(pubKey *cryptolib.PublicKey, msg *peering.PeerMessageData) {
+	peer, err := n.PeerByPubKey(pubKey)
+	if err != nil {
+		n.log.Warnf("SendMsgByPubKey: PubKey %v is not in the network", pubKey.AsString())
+		return
+	}
+	peer.SendMsg(msg)
+	peer.Close()
 }
 
 // Attach implements peering.NetworkProvider.
-func (n *netImpl) Attach(peeringID *peering.PeeringID, callback func(recv *peering.RecvEvent)) interface{} {
-	closure := events.NewClosure(func(recv *peering.RecvEvent) {
-		if peeringID == nil || *peeringID == recv.Msg.PeeringID {
+func (n *netImpl) Attach(peeringID *peering.PeeringID, receiver byte, callback func(recv *peering.PeerMessageIn)) interface{} {
+	closure := events.NewClosure(func(recv *peering.PeerMessageIn) {
+		if *peeringID == recv.PeeringID && receiver == recv.MsgReceiver {
 			callback(recv)
 		}
 	})
@@ -354,31 +369,14 @@ func (n *netImpl) Attach(peeringID *peering.PeeringID, callback func(recv *peeri
 
 // Detach implements peering.NetworkProvider.
 func (n *netImpl) Detach(attachID interface{}) {
-	switch closure := attachID.(type) {
-	case *events.Closure:
-		n.recvEvents.Detach(closure)
-	default:
-		panic("invalid_attach_id")
-	}
-}
-
-// PeerByNetID implements peering.NetworkProvider.
-func (n *netImpl) PeerByNetID(peerNetID string) (peering.PeerSender, error) {
-	return n.usePeer(peerNetID)
+	closure := attachID.(*events.Closure)
+	n.recvEvents.Detach(closure)
 }
 
 // PeerByPubKey implements peering.NetworkProvider.
 // NOTE: For now, only known nodes can be looked up by PubKey.
-func (n *netImpl) PeerByPubKey(peerPub *ed25519.PublicKey) (peering.PeerSender, error) {
-	n.peersLock.RLock()
-	defer n.peersLock.RUnlock()
-	for i := range n.peers {
-		pk := n.peers[i].PubKey()
-		if pk != nil && *pk == *peerPub { // Compared as binaries.
-			return n.PeerByNetID(n.peers[i].NetID())
-		}
-	}
-	return nil, errors.New("known peer not found by pubKey")
+func (n *netImpl) PeerByPubKey(peerPubKey *cryptolib.PublicKey) (peering.PeerSender, error) {
+	return n.usePeer(peerPubKey)
 }
 
 // PeerStatus implements peering.NetworkProvider.
@@ -398,21 +396,21 @@ func (n *netImpl) NetID() string {
 }
 
 // PubKey implements peering.PeerSender for the Self() node.
-func (n *netImpl) PubKey() *ed25519.PublicKey {
-	return &n.nodeKeyPair.PublicKey
+func (n *netImpl) PubKey() *cryptolib.PublicKey {
+	return n.nodeKeyPair.GetPublicKey()
 }
 
 // SendMsg implements peering.PeerSender for the Self() node.
-func (n *netImpl) SendMsg(msg *peering.PeerMessage) {
+func (n *netImpl) SendMsg(msg *peering.PeerMessageData) {
 	// Don't go via the network, if sending a message to self.
-	n.triggerRecvEvents(&peering.RecvEvent{
-		From: n.Self(),
-		Msg:  msg,
-	})
+	n.triggerRecvEvents(n.Self().PubKey(), &peering.PeerMessageNet{PeerMessageData: *msg})
 }
 
-func (n *netImpl) triggerRecvEvents(msg *peering.RecvEvent) {
-	n.recvEvents.Trigger(msg)
+func (n *netImpl) triggerRecvEvents(from *cryptolib.PublicKey, msg *peering.PeerMessageNet) {
+	n.recvEvents.Trigger(&peering.PeerMessageIn{
+		PeerMessageData: msg.PeerMessageData,
+		SenderPubKey:    from,
+	})
 }
 
 // IsAlive implements peering.PeerSender for the Self() node.
@@ -420,9 +418,19 @@ func (n *netImpl) IsAlive() bool {
 	return true // This node is alive.
 }
 
+// NumUsers implements peering.PeerStatusProvider for the Self() node.
+func (n *netImpl) NumUsers() int {
+	return 1
+}
+
 // Await implements peering.PeerSender for the Self() node.
 func (n *netImpl) Await(timeout time.Duration) error {
 	return nil // This node is alive immediately.
+}
+
+// Status implements peering.PeerSender interface for the remote peers.
+func (n *netImpl) Status() peering.PeerStatusProvider {
+	return n
 }
 
 // Close implements peering.PeerSender for the Self() node.
@@ -431,13 +439,13 @@ func (n *netImpl) Close() {
 }
 
 // IsTrustedPeer implements the peering.TrustedNetworkManager interface.
-func (n *netImpl) IsTrustedPeer(pubKey ed25519.PublicKey) error {
+func (n *netImpl) IsTrustedPeer(pubKey *cryptolib.PublicKey) error {
 	return n.trusted.IsTrustedPeer(pubKey)
 }
 
 // TrustPeer implements the peering.TrustedNetworkManager interface.
 // It delegates everything to other implementation and updates the connections accordingly.
-func (n *netImpl) TrustPeer(pubKey ed25519.PublicKey, netID string) (*peering.TrustedPeer, error) {
+func (n *netImpl) TrustPeer(pubKey *cryptolib.PublicKey, netID string) (*peering.TrustedPeer, error) {
 	trustedPeer, err := n.trusted.TrustPeer(pubKey, netID)
 	if err != nil {
 		return trustedPeer, err
@@ -447,11 +455,11 @@ func (n *netImpl) TrustPeer(pubKey ed25519.PublicKey, netID string) (*peering.Tr
 
 // DistrustPeer implements the peering.TrustedNetworkManager interface.
 // It delegates everything to other implementation and updates the connections accordingly.
-func (n *netImpl) DistrustPeer(pubKey ed25519.PublicKey) (*peering.TrustedPeer, error) {
+func (n *netImpl) DistrustPeer(pubKey *cryptolib.PublicKey) (*peering.TrustedPeer, error) {
 	n.peersLock.Lock()
 	for _, peer := range n.peers {
 		peerPubKey := peer.remotePubKey
-		if peerPubKey != nil && *peerPubKey == pubKey {
+		if peerPubKey != nil && pubKey.Equals(peerPubKey) {
 			peer.trust(false)
 		}
 	}
@@ -464,19 +472,19 @@ func (n *netImpl) TrustedPeers() ([]*peering.TrustedPeer, error) {
 	return n.trusted.TrustedPeers()
 }
 
-func (n *netImpl) usePeer(remoteNetID string) (peering.PeerSender, error) {
-	if remoteNetID == n.myNetID {
+func (n *netImpl) usePeer(remotePubKey *cryptolib.PublicKey) (peering.PeerSender, error) {
+	if remotePubKey.Equals(n.nodeKeyPair.GetPublicKey()) {
 		return n, nil
 	}
 	n.peersLock.Lock()
 	defer n.peersLock.Unlock()
 	for _, p := range n.peers {
-		if p.remoteNetID == remoteNetID {
+		if p.remotePubKey.Equals(remotePubKey) {
 			p.usePeer()
 			return p, nil
 		}
 	}
-	return nil, xerrors.Errorf("peer %v is not trusted", remoteNetID)
+	return nil, xerrors.Errorf("peer %v is not trusted", remotePubKey)
 }
 
 func (n *netImpl) maintenanceLoop(stopCh chan bool) {

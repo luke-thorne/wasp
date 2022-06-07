@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/iotaledger/hive.go/logger"
-	"github.com/iotaledger/wasp/packages/peering"
+	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/packages/testutil/testlogger"
 	"github.com/stretchr/testify/require"
 )
@@ -23,11 +23,14 @@ func TestPeeringNetDynamicReliable(t *testing.T) {
 		}
 		doneCh <- true
 	}()
-	someNode := peeringNode{netID: "src"}
+	// peerNetI, peerIdentities := testpeers.SetupKeys(2)
+	srcPeerIdentity := cryptolib.NewKeyPair()
+	dstPeerIdentity := cryptolib.NewKeyPair()
+	someNode := peeringNode{netID: "src", identity: srcPeerIdentity}
 	//
 	// Run the test.
 	behavior := NewPeeringNetDynamic(testlogger.WithLevel(testlogger.NewLogger(t), logger.LevelError, false))
-	behavior.AddLink(inCh, outCh, "dst")
+	behavior.AddLink(inCh, outCh, dstPeerIdentity.GetPublicKey())
 	for i := 0; i < 10; i++ {
 		sendMessage(&someNode, inCh)
 	}
@@ -43,20 +46,22 @@ func TestPeeringNetDynamicUnreliable(t *testing.T) {
 	stopCh := make(chan bool)
 	durations := make([]time.Duration, 0)
 	go testRecvLoop(outCh, &durations, stopCh)
-	someNode := peeringNode{netID: "src"}
+	srcPeerIdentity := cryptolib.NewKeyPair()
+	dstPeerIdentity := cryptolib.NewKeyPair()
+	someNode := peeringNode{netID: "src", identity: srcPeerIdentity}
 	//
 	// Run the test.
 	behavior := NewPeeringNetDynamic(testlogger.WithLevel(testlogger.NewLogger(t), logger.LevelError, false)).
 		WithLosingChannel(nil, 50).
 		WithRepeatingChannel(nil, 50).
 		WithDelayingChannel(nil, 50*time.Millisecond, 100*time.Millisecond)
-	behavior.AddLink(inCh, outCh, "dst")
+	behavior.AddLink(inCh, outCh, dstPeerIdentity.GetPublicKey())
 	for i := 0; i < 1000; i++ {
 		sendMessage(&someNode, inCh)
 	}
 	time.Sleep(500 * time.Millisecond)
 	//
-	// Verify the results (with some tolerance for randomness).
+	// Validate the results (with some tolerance for randomness).
 	{ // 50% of messages dropped + 50% duplicated -> delivered ~75%
 		require.Greater(t, len(durations), 500)
 		require.Less(t, len(durations), 900)
@@ -78,11 +83,13 @@ func TestPeeringNetDynamicChanging(t *testing.T) {
 	stopCh := make(chan bool)
 	durations := make([]time.Duration, 0)
 	go testRecvLoop(outCh, &durations, stopCh)
-	someNode := peeringNode{netID: "src"}
+	srcPeerIdentity := cryptolib.NewKeyPair()
+	dstPeerIdentity := cryptolib.NewKeyPair()
+	someNode := peeringNode{netID: "src", identity: srcPeerIdentity}
 	//
 	// Run the test.
 	behavior := NewPeeringNetDynamic(testlogger.WithLevel(testlogger.NewLogger(t), logger.LevelError, false))
-	behavior.AddLink(inCh, outCh, "dst")
+	behavior.AddLink(inCh, outCh, dstPeerIdentity.GetPublicKey())
 	for i := 0; i < 100; i++ {
 		sendMessage(&someNode, inCh)
 	}
@@ -135,17 +142,19 @@ func TestPeeringNetDynamicChanging(t *testing.T) {
 	behavior.Close()
 }
 
-func TestPeeringNetDynamicLosingChannel(t *testing.T) {
+func TestPeeringNetDynamicLosingChannel(t *testing.T) { //nolint:dupl
 	inCh := make(chan *peeringMsg)
 	outCh := make(chan *peeringMsg, 1000)
 	stopCh := make(chan bool)
 	durations := make([]time.Duration, 0)
 	go testRecvLoop(outCh, &durations, stopCh)
-	someNode := peeringNode{netID: "src"}
+	srcPeerIdentity := cryptolib.NewKeyPair()
+	dstPeerIdentity := cryptolib.NewKeyPair()
+	someNode := peeringNode{netID: "src", identity: srcPeerIdentity}
 	//
 	// Run the test.
 	behavior := NewPeeringNetDynamic(testlogger.WithLevel(testlogger.NewLogger(t), logger.LevelError, false)).WithLosingChannel(nil, 50)
-	behavior.AddLink(inCh, outCh, "dst")
+	behavior.AddLink(inCh, outCh, dstPeerIdentity.GetPublicKey())
 	for i := 0; i < 1000; i++ {
 		sendMessage(&someNode, inCh)
 	}
@@ -158,17 +167,19 @@ func TestPeeringNetDynamicLosingChannel(t *testing.T) {
 	behavior.Close()
 }
 
-func TestPeeringNetDynamicRepeatingChannel(t *testing.T) {
+func TestPeeringNetDynamicRepeatingChannel(t *testing.T) { //nolint:dupl
 	inCh := make(chan *peeringMsg)
 	outCh := make(chan *peeringMsg, 10000)
 	stopCh := make(chan bool)
 	durations := make([]time.Duration, 0)
 	go testRecvLoop(outCh, &durations, stopCh)
-	someNode := peeringNode{netID: "src"}
+	srcPeerIdentity := cryptolib.NewKeyPair()
+	dstPeerIdentity := cryptolib.NewKeyPair()
+	someNode := peeringNode{netID: "src", identity: srcPeerIdentity}
 	//
 	// Run the test.
 	behavior := NewPeeringNetDynamic(testlogger.WithLevel(testlogger.NewLogger(t), logger.LevelError, false)).WithRepeatingChannel(nil, 150)
-	behavior.AddLink(inCh, outCh, "dst")
+	behavior.AddLink(inCh, outCh, dstPeerIdentity.GetPublicKey())
 	for i := 0; i < 1000; i++ {
 		sendMessage(&someNode, inCh)
 	}
@@ -187,11 +198,13 @@ func TestPeeringNetDynamicDelayingChannel(t *testing.T) {
 	stopCh := make(chan bool)
 	durations := make([]time.Duration, 0)
 	go testRecvLoop(outCh, &durations, stopCh)
-	someNode := peeringNode{netID: "src"}
+	srcPeerIdentity := cryptolib.NewKeyPair()
+	dstPeerIdentity := cryptolib.NewKeyPair()
+	someNode := peeringNode{netID: "src", identity: srcPeerIdentity}
 	//
 	// Run the test.
 	behavior := NewPeeringNetDynamic(testlogger.WithLevel(testlogger.NewLogger(t), logger.LevelError, false)).WithDelayingChannel(nil, 25*time.Millisecond, 75*time.Millisecond)
-	behavior.AddLink(inCh, outCh, "dst")
+	behavior.AddLink(inCh, outCh, dstPeerIdentity.GetPublicKey())
 	for i := 0; i < 100; i++ {
 		sendMessage(&someNode, inCh)
 	}
@@ -214,13 +227,16 @@ func TestPeeringNetDynamicPeerDisconnected(t *testing.T) {
 	durationsD := make([]time.Duration, 0)
 	go testRecvLoop(outCh, &durations, stopCh)
 	go testRecvLoop(outChD, &durationsD, stopCh)
-	connectedNode := peeringNode{netID: "src"}
-	disconnectedNode := peeringNode{netID: "disconnected"}
+	srcPeerIdentity := cryptolib.NewKeyPair()
+	dstPeerIdentity := cryptolib.NewKeyPair()
+	disPeerIdentity := cryptolib.NewKeyPair()
+	connectedNode := peeringNode{netID: "src", identity: srcPeerIdentity}
+	disconnectedNode := peeringNode{netID: "disconnected", identity: disPeerIdentity}
 	//
 	// Run the test.
-	behavior := NewPeeringNetDynamic(testlogger.WithLevel(testlogger.NewLogger(t), logger.LevelError, false)).WithPeerDisconnected(nil, "disconnected")
-	behavior.AddLink(inCh, outCh, "dst")
-	behavior.AddLink(inChD, outChD, "disconnected")
+	behavior := NewPeeringNetDynamic(testlogger.WithLevel(testlogger.NewLogger(t), logger.LevelError, false)).WithPeerDisconnected(nil, disPeerIdentity.GetPublicKey())
+	behavior.AddLink(inCh, outCh, dstPeerIdentity.GetPublicKey())
+	behavior.AddLink(inChD, outChD, disPeerIdentity.GetPublicKey())
 	for i := 0; i < 100; i++ {
 		sendMessage(&connectedNode, inCh)    // Will be received
 		sendMessage(&connectedNode, inChD)   // Won't be received - destination is disconnected
@@ -242,7 +258,7 @@ func testRecvLoop(outCh chan *peeringMsg, durations *[]time.Duration, stopCh cha
 		case <-stopCh:
 			return
 		case msg := <-outCh:
-			*durations = append(*durations, time.Since(time.Unix(0, msg.msg.Timestamp)))
+			*durations = append(*durations, time.Since(time.Unix(0, msg.timestamp)))
 		}
 	}
 }
@@ -257,9 +273,7 @@ func averageDuration(durations []time.Duration) int64 {
 
 func sendMessage(from *peeringNode, inCh chan *peeringMsg) {
 	inCh <- &peeringMsg{
-		from: from,
-		msg: peering.PeerMessage{
-			Timestamp: time.Now().UnixNano(),
-		},
+		from:      from.identity.GetPublicKey(),
+		timestamp: time.Now().UnixNano(),
 	}
 }

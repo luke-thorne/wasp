@@ -7,108 +7,122 @@
 
 package fairauction
 
-import "github.com/iotaledger/wasp/packages/vm/wasmlib/go/wasmlib"
+import "github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib/wasmtypes"
 
-type ImmutableGetInfoResults struct {
-	id int32
+type ImmutableGetAuctionInfoResults struct {
+	proxy wasmtypes.Proxy
 }
 
-func (s ImmutableGetInfoResults) Bidders() wasmlib.ScImmutableInt32 {
-	return wasmlib.NewScImmutableInt32(s.id, idxMap[IdxResultBidders])
+// nr of bidders
+func (s ImmutableGetAuctionInfoResults) Bidders() wasmtypes.ScImmutableUint32 {
+	return wasmtypes.NewScImmutableUint32(s.proxy.Root(ResultBidders))
 }
 
-func (s ImmutableGetInfoResults) Color() wasmlib.ScImmutableColor {
-	return wasmlib.NewScImmutableColor(s.id, idxMap[IdxResultColor])
+// issuer of start_auction transaction
+func (s ImmutableGetAuctionInfoResults) Creator() wasmtypes.ScImmutableAgentID {
+	return wasmtypes.NewScImmutableAgentID(s.proxy.Root(ResultCreator))
 }
 
-func (s ImmutableGetInfoResults) Creator() wasmlib.ScImmutableAgentID {
-	return wasmlib.NewScImmutableAgentID(s.id, idxMap[IdxResultCreator])
+// deposit by auction owner to cover the SC fees
+func (s ImmutableGetAuctionInfoResults) Deposit() wasmtypes.ScImmutableUint64 {
+	return wasmtypes.NewScImmutableUint64(s.proxy.Root(ResultDeposit))
 }
 
-func (s ImmutableGetInfoResults) Deposit() wasmlib.ScImmutableInt64 {
-	return wasmlib.NewScImmutableInt64(s.id, idxMap[IdxResultDeposit])
+// auction description
+func (s ImmutableGetAuctionInfoResults) Description() wasmtypes.ScImmutableString {
+	return wasmtypes.NewScImmutableString(s.proxy.Root(ResultDescription))
 }
 
-func (s ImmutableGetInfoResults) Description() wasmlib.ScImmutableString {
-	return wasmlib.NewScImmutableString(s.id, idxMap[IdxResultDescription])
+// auction duration in minutes
+func (s ImmutableGetAuctionInfoResults) Duration() wasmtypes.ScImmutableUint32 {
+	return wasmtypes.NewScImmutableUint32(s.proxy.Root(ResultDuration))
 }
 
-func (s ImmutableGetInfoResults) Duration() wasmlib.ScImmutableInt32 {
-	return wasmlib.NewScImmutableInt32(s.id, idxMap[IdxResultDuration])
+// the current highest bid amount
+func (s ImmutableGetAuctionInfoResults) HighestBid() wasmtypes.ScImmutableUint64 {
+	return wasmtypes.NewScImmutableUint64(s.proxy.Root(ResultHighestBid))
 }
 
-func (s ImmutableGetInfoResults) HighestBid() wasmlib.ScImmutableInt64 {
-	return wasmlib.NewScImmutableInt64(s.id, idxMap[IdxResultHighestBid])
+// the current highest bidder
+func (s ImmutableGetAuctionInfoResults) HighestBidder() wasmtypes.ScImmutableAgentID {
+	return wasmtypes.NewScImmutableAgentID(s.proxy.Root(ResultHighestBidder))
 }
 
-func (s ImmutableGetInfoResults) HighestBidder() wasmlib.ScImmutableAgentID {
-	return wasmlib.NewScImmutableAgentID(s.id, idxMap[IdxResultHighestBidder])
+// minimum bid amount
+func (s ImmutableGetAuctionInfoResults) MinimumBid() wasmtypes.ScImmutableUint64 {
+	return wasmtypes.NewScImmutableUint64(s.proxy.Root(ResultMinimumBid))
 }
 
-func (s ImmutableGetInfoResults) MinimumBid() wasmlib.ScImmutableInt64 {
-	return wasmlib.NewScImmutableInt64(s.id, idxMap[IdxResultMinimumBid])
+// NFT of NFTs for sale
+func (s ImmutableGetAuctionInfoResults) Nft() wasmtypes.ScImmutableNftID {
+	return wasmtypes.NewScImmutableNftID(s.proxy.Root(ResultNft))
 }
 
-func (s ImmutableGetInfoResults) NumTokens() wasmlib.ScImmutableInt64 {
-	return wasmlib.NewScImmutableInt64(s.id, idxMap[IdxResultNumTokens])
+// auction owner's margin in promilles
+func (s ImmutableGetAuctionInfoResults) OwnerMargin() wasmtypes.ScImmutableUint64 {
+	return wasmtypes.NewScImmutableUint64(s.proxy.Root(ResultOwnerMargin))
 }
 
-func (s ImmutableGetInfoResults) OwnerMargin() wasmlib.ScImmutableInt64 {
-	return wasmlib.NewScImmutableInt64(s.id, idxMap[IdxResultOwnerMargin])
+// timestamp when auction started
+func (s ImmutableGetAuctionInfoResults) WhenStarted() wasmtypes.ScImmutableUint64 {
+	return wasmtypes.NewScImmutableUint64(s.proxy.Root(ResultWhenStarted))
 }
 
-func (s ImmutableGetInfoResults) WhenStarted() wasmlib.ScImmutableInt64 {
-	return wasmlib.NewScImmutableInt64(s.id, idxMap[IdxResultWhenStarted])
+type MutableGetAuctionInfoResults struct {
+	proxy wasmtypes.Proxy
 }
 
-type MutableGetInfoResults struct {
-	id int32
+// nr of bidders
+func (s MutableGetAuctionInfoResults) Bidders() wasmtypes.ScMutableUint32 {
+	return wasmtypes.NewScMutableUint32(s.proxy.Root(ResultBidders))
 }
 
-func (s MutableGetInfoResults) Bidders() wasmlib.ScMutableInt32 {
-	return wasmlib.NewScMutableInt32(s.id, idxMap[IdxResultBidders])
+// issuer of start_auction transaction
+func (s MutableGetAuctionInfoResults) Creator() wasmtypes.ScMutableAgentID {
+	return wasmtypes.NewScMutableAgentID(s.proxy.Root(ResultCreator))
 }
 
-func (s MutableGetInfoResults) Color() wasmlib.ScMutableColor {
-	return wasmlib.NewScMutableColor(s.id, idxMap[IdxResultColor])
+// deposit by auction owner to cover the SC fees
+func (s MutableGetAuctionInfoResults) Deposit() wasmtypes.ScMutableUint64 {
+	return wasmtypes.NewScMutableUint64(s.proxy.Root(ResultDeposit))
 }
 
-func (s MutableGetInfoResults) Creator() wasmlib.ScMutableAgentID {
-	return wasmlib.NewScMutableAgentID(s.id, idxMap[IdxResultCreator])
+// auction description
+func (s MutableGetAuctionInfoResults) Description() wasmtypes.ScMutableString {
+	return wasmtypes.NewScMutableString(s.proxy.Root(ResultDescription))
 }
 
-func (s MutableGetInfoResults) Deposit() wasmlib.ScMutableInt64 {
-	return wasmlib.NewScMutableInt64(s.id, idxMap[IdxResultDeposit])
+// auction duration in minutes
+func (s MutableGetAuctionInfoResults) Duration() wasmtypes.ScMutableUint32 {
+	return wasmtypes.NewScMutableUint32(s.proxy.Root(ResultDuration))
 }
 
-func (s MutableGetInfoResults) Description() wasmlib.ScMutableString {
-	return wasmlib.NewScMutableString(s.id, idxMap[IdxResultDescription])
+// the current highest bid amount
+func (s MutableGetAuctionInfoResults) HighestBid() wasmtypes.ScMutableUint64 {
+	return wasmtypes.NewScMutableUint64(s.proxy.Root(ResultHighestBid))
 }
 
-func (s MutableGetInfoResults) Duration() wasmlib.ScMutableInt32 {
-	return wasmlib.NewScMutableInt32(s.id, idxMap[IdxResultDuration])
+// the current highest bidder
+func (s MutableGetAuctionInfoResults) HighestBidder() wasmtypes.ScMutableAgentID {
+	return wasmtypes.NewScMutableAgentID(s.proxy.Root(ResultHighestBidder))
 }
 
-func (s MutableGetInfoResults) HighestBid() wasmlib.ScMutableInt64 {
-	return wasmlib.NewScMutableInt64(s.id, idxMap[IdxResultHighestBid])
+// minimum bid amount
+func (s MutableGetAuctionInfoResults) MinimumBid() wasmtypes.ScMutableUint64 {
+	return wasmtypes.NewScMutableUint64(s.proxy.Root(ResultMinimumBid))
 }
 
-func (s MutableGetInfoResults) HighestBidder() wasmlib.ScMutableAgentID {
-	return wasmlib.NewScMutableAgentID(s.id, idxMap[IdxResultHighestBidder])
+// NFT of NFTs for sale
+func (s MutableGetAuctionInfoResults) Nft() wasmtypes.ScMutableNftID {
+	return wasmtypes.NewScMutableNftID(s.proxy.Root(ResultNft))
 }
 
-func (s MutableGetInfoResults) MinimumBid() wasmlib.ScMutableInt64 {
-	return wasmlib.NewScMutableInt64(s.id, idxMap[IdxResultMinimumBid])
+// auction owner's margin in promilles
+func (s MutableGetAuctionInfoResults) OwnerMargin() wasmtypes.ScMutableUint64 {
+	return wasmtypes.NewScMutableUint64(s.proxy.Root(ResultOwnerMargin))
 }
 
-func (s MutableGetInfoResults) NumTokens() wasmlib.ScMutableInt64 {
-	return wasmlib.NewScMutableInt64(s.id, idxMap[IdxResultNumTokens])
-}
-
-func (s MutableGetInfoResults) OwnerMargin() wasmlib.ScMutableInt64 {
-	return wasmlib.NewScMutableInt64(s.id, idxMap[IdxResultOwnerMargin])
-}
-
-func (s MutableGetInfoResults) WhenStarted() wasmlib.ScMutableInt64 {
-	return wasmlib.NewScMutableInt64(s.id, idxMap[IdxResultWhenStarted])
+// timestamp when auction started
+func (s MutableGetAuctionInfoResults) WhenStarted() wasmtypes.ScMutableUint64 {
+	return wasmtypes.NewScMutableUint64(s.proxy.Root(ResultWhenStarted))
 }

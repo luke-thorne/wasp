@@ -4,8 +4,13 @@
 package inccounter
 
 import (
-	"github.com/iotaledger/wasp/packages/vm/wasmlib/go/wasmlib"
+	"strconv"
+
+	"github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib"
+	"github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib/wasmtypes"
 )
+
+const hex = "0123456789abcdef"
 
 var LocalStateMustIncrement = false
 
@@ -34,9 +39,7 @@ func funcCallIncrementRecurse5x(ctx wasmlib.ScFuncContext, f *CallIncrementRecur
 	}
 }
 
-//nolint:unparam
 func funcEndlessLoop(ctx wasmlib.ScFuncContext, f *EndlessLoopContext) {
-	//nolint:staticcheck
 	for {
 		// intentional endless loop to see if Wasm VM can be interrupted
 	}
@@ -45,6 +48,12 @@ func funcEndlessLoop(ctx wasmlib.ScFuncContext, f *EndlessLoopContext) {
 func funcIncrement(ctx wasmlib.ScFuncContext, f *IncrementContext) {
 	counter := f.State.Counter()
 	counter.SetValue(counter.Value() + 1)
+}
+
+func funcIncrementWithDelay(ctx wasmlib.ScFuncContext, f *IncrementWithDelayContext) {
+	delay := f.Params.Delay().Value()
+	inc := ScFuncs.CallIncrement(ctx)
+	inc.Func.Delay(delay).Post()
 }
 
 func funcLocalStateInternalCall(ctx wasmlib.ScFuncContext, f *LocalStateInternalCallContext) {
@@ -56,7 +65,6 @@ func funcLocalStateInternalCall(ctx wasmlib.ScFuncContext, f *LocalStateInternal
 	// counter ends up as 2
 }
 
-//nolint:unparam
 func funcLocalStatePost(ctx wasmlib.ScFuncContext, f *LocalStatePostContext) {
 	LocalStateMustIncrement = false
 	// prevent multiple identical posts, need a dummy param to differentiate them
@@ -67,7 +75,6 @@ func funcLocalStatePost(ctx wasmlib.ScFuncContext, f *LocalStatePostContext) {
 	// counter ends up as 0
 }
 
-//nolint:unparam
 func funcLocalStateSandboxCall(ctx wasmlib.ScFuncContext, f *LocalStateSandboxCallContext) {
 	LocalStateMustIncrement = false
 	ScFuncs.WhenMustIncrement(ctx).Func.Call()
@@ -82,7 +89,7 @@ func funcPostIncrement(ctx wasmlib.ScFuncContext, f *PostIncrementContext) {
 	value := counter.Value()
 	counter.SetValue(value + 1)
 	if value == 0 {
-		ScFuncs.PostIncrement(ctx).Func.TransferIotas(1).Post()
+		ScFuncs.PostIncrement(ctx).Func.Post()
 	}
 }
 
@@ -99,16 +106,53 @@ func funcRepeatMany(ctx wasmlib.ScFuncContext, f *RepeatManyContext) {
 		}
 	}
 	stateRepeats.SetValue(repeats - 1)
-	ScFuncs.RepeatMany(ctx).Func.TransferIotas(1).Post()
+	ScFuncs.RepeatMany(ctx).Func.Post()
+}
+
+func funcTestVliCodec(ctx wasmlib.ScFuncContext, f *TestVliCodecContext) {
+	vliSave(ctx, "v-129", -129)
+	vliSave(ctx, "v-128", -128)
+	vliSave(ctx, "v-127", -127)
+	vliSave(ctx, "v-126", -126)
+	vliSave(ctx, "v-65", -65)
+	vliSave(ctx, "v-64", -64)
+	vliSave(ctx, "v-63", -63)
+	vliSave(ctx, "v-62", -62)
+	vliSave(ctx, "v-2", -2)
+	vliSave(ctx, "v-1", -1)
+	vliSave(ctx, "v 0", 0)
+	vliSave(ctx, "v+1", 1)
+	vliSave(ctx, "v+2", 2)
+	vliSave(ctx, "v+62", 62)
+	vliSave(ctx, "v+63", 63)
+	vliSave(ctx, "v+64", 64)
+	vliSave(ctx, "v+65", 65)
+	vliSave(ctx, "v+126", 126)
+	vliSave(ctx, "v+127", 127)
+	vliSave(ctx, "v+128", 128)
+	vliSave(ctx, "v+129", 129)
+}
+
+func funcTestVluCodec(ctx wasmlib.ScFuncContext, f *TestVluCodecContext) {
+	vluSave(ctx, "v 0", 0)
+	vluSave(ctx, "v+1", 1)
+	vluSave(ctx, "v+2", 2)
+	vluSave(ctx, "v+62", 62)
+	vluSave(ctx, "v+63", 63)
+	vluSave(ctx, "v+64", 64)
+	vluSave(ctx, "v+65", 65)
+	vluSave(ctx, "v+126", 126)
+	vluSave(ctx, "v+127", 127)
+	vluSave(ctx, "v+128", 128)
+	vluSave(ctx, "v+129", 129)
 }
 
 func funcWhenMustIncrement(ctx wasmlib.ScFuncContext, f *WhenMustIncrementContext) {
 	whenMustIncrementState(ctx, f.State)
 }
 
-// note that get_counter mirrors the state of the 'counter' state variable
+// note that getCounter mirrors the state of the 'counter' state variable
 // which means that if the state variable was not present it also will not be present in the result
-
 func viewGetCounter(ctx wasmlib.ScViewContext, f *GetCounterContext) {
 	counter := f.State.Counter()
 	if counter.Exists() {
@@ -116,43 +160,85 @@ func viewGetCounter(ctx wasmlib.ScViewContext, f *GetCounterContext) {
 	}
 }
 
-//nolint:unparam
-func funcTestLeb128(ctx wasmlib.ScFuncContext, f *TestLeb128Context) {
-	leb128Save(ctx, "v-1", -1)
-	leb128Save(ctx, "v-2", -2)
-	leb128Save(ctx, "v-126", -126)
-	leb128Save(ctx, "v-127", -127)
-	leb128Save(ctx, "v-128", -128)
-	leb128Save(ctx, "v-129", -129)
-	leb128Save(ctx, "v0", 0)
-	leb128Save(ctx, "v+1", 1)
-	leb128Save(ctx, "v+2", 2)
-	leb128Save(ctx, "v+126", 126)
-	leb128Save(ctx, "v+127", 127)
-	leb128Save(ctx, "v+128", 128)
-	leb128Save(ctx, "v+129", 129)
-}
+//nolint:dupl
+func viewGetVli(ctx wasmlib.ScViewContext, f *GetVliContext) {
+	enc := wasmtypes.NewWasmEncoder()
+	n := f.Params.Ni64().Value()
+	buf := enc.VliEncode(n).Buf()
+	dec := wasmtypes.NewWasmDecoder(buf)
+	x := wasmtypes.Int64Decode(dec)
 
-func leb128Save(ctx wasmlib.ScFuncContext, name string, value int64) {
-	encoder := wasmlib.NewBytesEncoder()
-	encoder.Int64(value)
-	spot := ctx.State().GetBytes(wasmlib.Key(name))
-	spot.SetValue(encoder.Data())
-
-	bytes := spot.Value()
-	decoder := wasmlib.NewBytesDecoder(bytes)
-	retrieved := decoder.Int64()
-	if retrieved != value {
-		ctx.Log(name + " in : " + ctx.Utility().String(value))
-		ctx.Log(name + " out: " + ctx.Utility().String(retrieved))
+	str := strconv.FormatInt(n, 10) + " -"
+	for j := 0; j < len(buf); j++ {
+		b := buf[j]
+		str += " " + string(append([]byte(nil), hex[(b>>4)&0x0f], hex[b&0x0f]))
 	}
+	str += " - " + strconv.FormatInt(x, 10)
+
+	f.Results.Ni64().SetValue(n)
+	f.Results.Xi64().SetValue(x)
+	f.Results.Str().SetValue(str)
+	f.Results.Buf().SetValue(buf)
 }
+
+//nolint:dupl
+func viewGetVlu(ctx wasmlib.ScViewContext, f *GetVluContext) {
+	enc := wasmtypes.NewWasmEncoder()
+	n := f.Params.Nu64().Value()
+	buf := enc.VluEncode(n).Buf()
+	dec := wasmtypes.NewWasmDecoder(buf)
+	x := wasmtypes.Uint64Decode(dec)
+
+	str := strconv.FormatUint(n, 10) + " -"
+	for j := 0; j < len(buf); j++ {
+		b := buf[j]
+		str += " " + string(append([]byte(nil), hex[(b>>4)&0x0f], hex[b&0x0f]))
+	}
+	str += " - " + strconv.FormatUint(x, 10)
+
+	f.Results.Nu64().SetValue(n)
+	f.Results.Xu64().SetValue(x)
+	f.Results.Str().SetValue(str)
+	f.Results.Buf().SetValue(buf)
+}
+
+//////////////////////////////// util funcs \\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 func localStatePost(ctx wasmlib.ScFuncContext, nr int64) {
 	// note: we add a dummy parameter here to prevent "duplicate outputs not allowed" error
 	f := ScFuncs.WhenMustIncrement(ctx)
 	f.Params.Dummy().SetValue(nr)
-	f.Func.TransferIotas(1).Post()
+	f.Func.Post()
+}
+
+func vliSave(ctx wasmlib.ScFuncContext, name string, value int64) {
+	enc := wasmtypes.NewWasmEncoder()
+	state := ctx.RawState()
+	key := []byte(name)
+	state.Set(key, enc.VliEncode(value).Buf())
+
+	buf := state.Get(key)
+	dec := wasmtypes.NewWasmDecoder(buf)
+	val := dec.VliDecode(64)
+	if val != value {
+		ctx.Log(name + " in : " + wasmtypes.Int64ToString(value))
+		ctx.Log(name + " out: " + wasmtypes.Int64ToString(val))
+	}
+}
+
+func vluSave(ctx wasmlib.ScFuncContext, name string, value uint64) {
+	enc := wasmtypes.NewWasmEncoder()
+	state := ctx.RawState()
+	key := []byte(name)
+	state.Set(key, enc.VluEncode(value).Buf())
+
+	buf := state.Get(key)
+	dec := wasmtypes.NewWasmDecoder(buf)
+	val := dec.VluDecode(64)
+	if val != value {
+		ctx.Log(name + " in : " + wasmtypes.Uint64ToString(value))
+		ctx.Log(name + " out: " + wasmtypes.Uint64ToString(val))
+	}
 }
 
 func whenMustIncrementState(ctx wasmlib.ScFuncContext, state MutableIncCounterState) {
@@ -162,10 +248,4 @@ func whenMustIncrementState(ctx wasmlib.ScFuncContext, state MutableIncCounterSt
 	}
 	counter := state.Counter()
 	counter.SetValue(counter.Value() + 1)
-}
-
-func funcIncrementWithDelay(ctx wasmlib.ScFuncContext, f *IncrementWithDelayContext) {
-	delay := f.Params.Delay().Value()
-	inc := ScFuncs.CallIncrement(ctx)
-	inc.Func.Delay(delay).TransferIotas(1).Post()
 }

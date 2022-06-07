@@ -9,141 +9,144 @@
 #![allow(unused_imports)]
 
 use wasmlib::*;
-use wasmlib::host::*;
-
 use crate::*;
-use crate::keys::*;
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableFinalizeAuctionParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableFinalizeAuctionParams {
-    pub fn color(&self) -> ScImmutableColor {
-		ScImmutableColor::new(self.id, idx_map(IDX_PARAM_COLOR))
+    // NFT identifies the auction
+    pub fn nft(&self) -> ScImmutableNftID {
+		ScImmutableNftID::new(self.proxy.root(PARAM_NFT))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableFinalizeAuctionParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableFinalizeAuctionParams {
-    pub fn color(&self) -> ScMutableColor {
-		ScMutableColor::new(self.id, idx_map(IDX_PARAM_COLOR))
+    // NFT identifies the auction
+    pub fn nft(&self) -> ScMutableNftID {
+		ScMutableNftID::new(self.proxy.root(PARAM_NFT))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutablePlaceBidParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutablePlaceBidParams {
-    pub fn color(&self) -> ScImmutableColor {
-		ScImmutableColor::new(self.id, idx_map(IDX_PARAM_COLOR))
+    // NFT identifies the auction
+    pub fn nft(&self) -> ScImmutableNftID {
+		ScImmutableNftID::new(self.proxy.root(PARAM_NFT))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutablePlaceBidParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutablePlaceBidParams {
-    pub fn color(&self) -> ScMutableColor {
-		ScMutableColor::new(self.id, idx_map(IDX_PARAM_COLOR))
+    // NFT identifies the auction
+    pub fn nft(&self) -> ScMutableNftID {
+		ScMutableNftID::new(self.proxy.root(PARAM_NFT))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableSetOwnerMarginParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableSetOwnerMarginParams {
-    pub fn owner_margin(&self) -> ScImmutableInt64 {
-		ScImmutableInt64::new(self.id, idx_map(IDX_PARAM_OWNER_MARGIN))
+    // new SC owner margin in promilles
+    pub fn owner_margin(&self) -> ScImmutableUint64 {
+		ScImmutableUint64::new(self.proxy.root(PARAM_OWNER_MARGIN))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableSetOwnerMarginParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableSetOwnerMarginParams {
-    pub fn owner_margin(&self) -> ScMutableInt64 {
-		ScMutableInt64::new(self.id, idx_map(IDX_PARAM_OWNER_MARGIN))
+    // new SC owner margin in promilles
+    pub fn owner_margin(&self) -> ScMutableUint64 {
+		ScMutableUint64::new(self.proxy.root(PARAM_OWNER_MARGIN))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableStartAuctionParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableStartAuctionParams {
-    pub fn color(&self) -> ScImmutableColor {
-		ScImmutableColor::new(self.id, idx_map(IDX_PARAM_COLOR))
-	}
-
+    // description of the NFTs being auctioned
     pub fn description(&self) -> ScImmutableString {
-		ScImmutableString::new(self.id, idx_map(IDX_PARAM_DESCRIPTION))
+		ScImmutableString::new(self.proxy.root(PARAM_DESCRIPTION))
 	}
 
-    pub fn duration(&self) -> ScImmutableInt32 {
-		ScImmutableInt32::new(self.id, idx_map(IDX_PARAM_DURATION))
+    // duration of auction in minutes
+    pub fn duration(&self) -> ScImmutableUint32 {
+		ScImmutableUint32::new(self.proxy.root(PARAM_DURATION))
 	}
 
-    pub fn minimum_bid(&self) -> ScImmutableInt64 {
-		ScImmutableInt64::new(self.id, idx_map(IDX_PARAM_MINIMUM_BID))
+    // minimum required amount for any bid
+    pub fn minimum_bid(&self) -> ScImmutableUint64 {
+		ScImmutableUint64::new(self.proxy.root(PARAM_MINIMUM_BID))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableStartAuctionParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableStartAuctionParams {
-    pub fn color(&self) -> ScMutableColor {
-		ScMutableColor::new(self.id, idx_map(IDX_PARAM_COLOR))
-	}
-
+    // description of the NFTs being auctioned
     pub fn description(&self) -> ScMutableString {
-		ScMutableString::new(self.id, idx_map(IDX_PARAM_DESCRIPTION))
+		ScMutableString::new(self.proxy.root(PARAM_DESCRIPTION))
 	}
 
-    pub fn duration(&self) -> ScMutableInt32 {
-		ScMutableInt32::new(self.id, idx_map(IDX_PARAM_DURATION))
+    // duration of auction in minutes
+    pub fn duration(&self) -> ScMutableUint32 {
+		ScMutableUint32::new(self.proxy.root(PARAM_DURATION))
 	}
 
-    pub fn minimum_bid(&self) -> ScMutableInt64 {
-		ScMutableInt64::new(self.id, idx_map(IDX_PARAM_MINIMUM_BID))
-	}
-}
-
-#[derive(Clone, Copy)]
-pub struct ImmutableGetInfoParams {
-    pub(crate) id: i32,
-}
-
-impl ImmutableGetInfoParams {
-    pub fn color(&self) -> ScImmutableColor {
-		ScImmutableColor::new(self.id, idx_map(IDX_PARAM_COLOR))
+    // minimum required amount for any bid
+    pub fn minimum_bid(&self) -> ScMutableUint64 {
+		ScMutableUint64::new(self.proxy.root(PARAM_MINIMUM_BID))
 	}
 }
 
-#[derive(Clone, Copy)]
-pub struct MutableGetInfoParams {
-    pub(crate) id: i32,
+#[derive(Clone)]
+pub struct ImmutableGetAuctionInfoParams {
+	pub(crate) proxy: Proxy,
 }
 
-impl MutableGetInfoParams {
-    pub fn color(&self) -> ScMutableColor {
-		ScMutableColor::new(self.id, idx_map(IDX_PARAM_COLOR))
+impl ImmutableGetAuctionInfoParams {
+    // NFT identifies the auction
+    pub fn nft(&self) -> ScImmutableNftID {
+		ScImmutableNftID::new(self.proxy.root(PARAM_NFT))
+	}
+}
+
+#[derive(Clone)]
+pub struct MutableGetAuctionInfoParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl MutableGetAuctionInfoParams {
+    // NFT identifies the auction
+    pub fn nft(&self) -> ScMutableNftID {
+		ScMutableNftID::new(self.proxy.root(PARAM_NFT))
 	}
 }

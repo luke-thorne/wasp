@@ -8,10 +8,11 @@ keywords:
 - withdraw
 - assets
 - balance
+- reference
 --- 
 # The `accounts` Contract
 
-The `accounts` contract is one of the [core contracts](overview.md) on each ISCP
+The `accounts` contract is one of the [core contracts](overview.md) on each IOTA Smart Contracts
 chain.
 
 The `accounts` contract keeps a consistent ledger of on-chain accounts in its state for the agents that control them. There are two types of agents who can do it: L1 addresses and smart contracts.
@@ -22,9 +23,13 @@ The `accounts` contract provides functions to deposit and withdraw tokens, and a
 
 Note that the ledger of accounts on the chain is consistently maintained behind scenes by the VM.
 
+### sendTo
+
+Moves tokens from the sender account to a target account on the chain, specified with the agent ID parameter `a`.
+
 ### deposit
 
-Moves tokens attached as a transfer to a target account on the chain. By default, the funds are deposited to the caller account. Optionally, a different target account can be specified with the agent ID parameter `a`.
+Credits any transfered tokens to the sender's account.
 
 ### withdraw
 

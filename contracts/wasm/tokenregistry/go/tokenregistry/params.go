@@ -7,76 +7,86 @@
 
 package tokenregistry
 
-import "github.com/iotaledger/wasp/packages/vm/wasmlib/go/wasmlib"
+import "github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib/wasmtypes"
 
 type ImmutableMintSupplyParams struct {
-	id int32
+	proxy wasmtypes.Proxy
 }
 
-func (s ImmutableMintSupplyParams) Description() wasmlib.ScImmutableString {
-	return wasmlib.NewScImmutableString(s.id, idxMap[IdxParamDescription])
+// description what minted token represents
+func (s ImmutableMintSupplyParams) Description() wasmtypes.ScImmutableString {
+	return wasmtypes.NewScImmutableString(s.proxy.Root(ParamDescription))
 }
 
-func (s ImmutableMintSupplyParams) UserDefined() wasmlib.ScImmutableString {
-	return wasmlib.NewScImmutableString(s.id, idxMap[IdxParamUserDefined])
+// any user defined text
+func (s ImmutableMintSupplyParams) UserDefined() wasmtypes.ScImmutableString {
+	return wasmtypes.NewScImmutableString(s.proxy.Root(ParamUserDefined))
 }
 
 type MutableMintSupplyParams struct {
-	id int32
+	proxy wasmtypes.Proxy
 }
 
-func (s MutableMintSupplyParams) Description() wasmlib.ScMutableString {
-	return wasmlib.NewScMutableString(s.id, idxMap[IdxParamDescription])
+// description what minted token represents
+func (s MutableMintSupplyParams) Description() wasmtypes.ScMutableString {
+	return wasmtypes.NewScMutableString(s.proxy.Root(ParamDescription))
 }
 
-func (s MutableMintSupplyParams) UserDefined() wasmlib.ScMutableString {
-	return wasmlib.NewScMutableString(s.id, idxMap[IdxParamUserDefined])
+// any user defined text
+func (s MutableMintSupplyParams) UserDefined() wasmtypes.ScMutableString {
+	return wasmtypes.NewScMutableString(s.proxy.Root(ParamUserDefined))
 }
 
 type ImmutableTransferOwnershipParams struct {
-	id int32
+	proxy wasmtypes.Proxy
 }
 
-func (s ImmutableTransferOwnershipParams) Color() wasmlib.ScImmutableColor {
-	return wasmlib.NewScImmutableColor(s.id, idxMap[IdxParamColor])
+// token of token to transfer ownership of
+func (s ImmutableTransferOwnershipParams) Token() wasmtypes.ScImmutableTokenID {
+	return wasmtypes.NewScImmutableTokenID(s.proxy.Root(ParamToken))
 }
 
 type MutableTransferOwnershipParams struct {
-	id int32
+	proxy wasmtypes.Proxy
 }
 
-func (s MutableTransferOwnershipParams) Color() wasmlib.ScMutableColor {
-	return wasmlib.NewScMutableColor(s.id, idxMap[IdxParamColor])
+// token of token to transfer ownership of
+func (s MutableTransferOwnershipParams) Token() wasmtypes.ScMutableTokenID {
+	return wasmtypes.NewScMutableTokenID(s.proxy.Root(ParamToken))
 }
 
 type ImmutableUpdateMetadataParams struct {
-	id int32
+	proxy wasmtypes.Proxy
 }
 
-func (s ImmutableUpdateMetadataParams) Color() wasmlib.ScImmutableColor {
-	return wasmlib.NewScImmutableColor(s.id, idxMap[IdxParamColor])
+// token of token to update metadata for
+func (s ImmutableUpdateMetadataParams) Token() wasmtypes.ScImmutableTokenID {
+	return wasmtypes.NewScImmutableTokenID(s.proxy.Root(ParamToken))
 }
 
 type MutableUpdateMetadataParams struct {
-	id int32
+	proxy wasmtypes.Proxy
 }
 
-func (s MutableUpdateMetadataParams) Color() wasmlib.ScMutableColor {
-	return wasmlib.NewScMutableColor(s.id, idxMap[IdxParamColor])
+// token of token to update metadata for
+func (s MutableUpdateMetadataParams) Token() wasmtypes.ScMutableTokenID {
+	return wasmtypes.NewScMutableTokenID(s.proxy.Root(ParamToken))
 }
 
 type ImmutableGetInfoParams struct {
-	id int32
+	proxy wasmtypes.Proxy
 }
 
-func (s ImmutableGetInfoParams) Color() wasmlib.ScImmutableColor {
-	return wasmlib.NewScImmutableColor(s.id, idxMap[IdxParamColor])
+// token of token to view registry info of
+func (s ImmutableGetInfoParams) Token() wasmtypes.ScImmutableTokenID {
+	return wasmtypes.NewScImmutableTokenID(s.proxy.Root(ParamToken))
 }
 
 type MutableGetInfoParams struct {
-	id int32
+	proxy wasmtypes.Proxy
 }
 
-func (s MutableGetInfoParams) Color() wasmlib.ScMutableColor {
-	return wasmlib.NewScMutableColor(s.id, idxMap[IdxParamColor])
+// token of token to view registry info of
+func (s MutableGetInfoParams) Token() wasmtypes.ScMutableTokenID {
+	return wasmtypes.NewScMutableTokenID(s.proxy.Root(ParamToken))
 }

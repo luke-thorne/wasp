@@ -1,3 +1,6 @@
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 package rstemplates
 
 var typedefsRs = map[string]string{
@@ -5,9 +8,8 @@ var typedefsRs = map[string]string{
 	"typedefs.rs": `
 #![allow(dead_code)]
 
-use wasmlib::*;
-use wasmlib::host::*;
-$#if structs useStructs
+$#if core else useWasmLib
+use crate::*;
 $#each typedef typedefProxy
 `,
 	// *******************************
@@ -26,6 +28,7 @@ $#if map typedefProxyAlias
 	// *******************************
 	"typedefProxyAlias": `
 
+$#each fldComment _typedefComment
 pub type $mut$FldName = $proxy;
 `,
 	// *******************************
@@ -36,14 +39,15 @@ $#if exist else typedefProxyArrayNew
 	// *******************************
 	"typedefProxyArrayNew": `
 
+#[derive(Clone)]
 pub struct $proxy {
-	pub(crate) obj_id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl $proxy {
-$#if mut typedefProxyArrayClear
-    pub fn length(&self) -> i32 {
-        get_length(self.obj_id)
+$#if mut typedefProxyArrayMut
+    pub fn length(&self) -> u32 {
+        self.proxy.length()
     }
 
 $#if basetype typedefProxyArrayNewBaseType typedefProxyArrayNewOtherType
@@ -51,95 +55,76 @@ $#if basetype typedefProxyArrayNewBaseType typedefProxyArrayNewOtherType
 $#set exist $proxy
 `,
 	// *******************************
-	"typedefProxyArrayClear": `
-    pub fn clear(&self) {
-        clear(self.obj_id);
+	"typedefProxyArrayMut": `
+$#if basetype typedefProxyArrayAppendBaseType typedefProxyArrayAppendOtherType
+	pub fn clear(&self) {
+        self.proxy.clear_array();
     }
 
 `,
 	// *******************************
+	"typedefProxyArrayAppendBaseType": `
+	pub fn append_$fld_type(&self) -> Sc$mut$FldType {
+		Sc$mut$FldType::new(self.proxy.append())
+	}
+
+`,
+	// *******************************
+	"typedefProxyArrayAppendOtherType": `
+
+	pub fn append_$fld_type(&self) -> $mut$FldType {
+		$mut$FldType { proxy: self.proxy.append() }
+	}
+`,
+	// *******************************
 	"typedefProxyArrayNewBaseType": `
-    pub fn get_$fld_type(&self, index: i32) -> Sc$mut$FldType {
-        Sc$mut$FldType::new(self.obj_id, Key32(index))
+    pub fn get_$fld_type(&self, index: u32) -> Sc$mut$FldType {
+        Sc$mut$FldType::new(self.proxy.index(index))
     }
 `,
 	// *******************************
 	"typedefProxyArrayNewOtherType": `
-$#set OldType $FldType
-$#if typedef typedefProxyArrayNewOtherTypeTypeDef typedefProxyArrayNewOtherTypeStruct
-`,
-	// *******************************
-	"typedefProxyArrayNewOtherTypeTypeDef": `
-$#set varType TYPE_MAP
-$#if array setVarTypeArray
 
-	pub fn Get$OldType(&self, index: i32) -> $mut$OldType {
-		let sub_id = get_object_id(self.obj_id, Key32(index), $varType);
-		$mut$OldType { obj_id: sub_id }
-	}
-`,
-	// *******************************
-	"typedefProxyArrayNewOtherTypeStruct": `
-	pub fn get_$fld_type(&self, index: i32) -> $mut$FldType {
-		$mut$FldType { obj_id: self.obj_id, key_id: Key32(index) }
+	pub fn get_$fld_type(&self, index: u32) -> $mut$FldType {
+		$mut$FldType { proxy: self.proxy.index(index) }
 	}
 `,
 	// *******************************
 	"typedefProxyMap": `
-$#set proxy Map$fldMapKey$+To$mut$FldType
+$#set proxy Map$FldMapKey$+To$mut$FldType
 $#if exist else typedefProxyMapNew
 `,
 	// *******************************
 	"typedefProxyMapNew": `
 
+#[derive(Clone)]
 pub struct $proxy {
-	pub(crate) obj_id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl $proxy {
-$#if mut typedefProxyMapClear
+$#if mut typedefProxyMapMut
 $#if basetype typedefProxyMapNewBaseType typedefProxyMapNewOtherType
 }
 $#set exist $proxy
 `,
 	// *******************************
-	"typedefProxyMapClear": `
+	"typedefProxyMapMut": `
     pub fn clear(&self) {
-        clear(self.obj_id);
+        self.proxy.clear_map();
     }
 
 `,
 	// *******************************
 	"typedefProxyMapNewBaseType": `
-    pub fn get_$fld_type(&self, key: $fldMapKeyLangType) -> Sc$mut$FldType {
-        Sc$mut$FldType::new(self.obj_id, key.get_key_id())
+    pub fn get_$fld_type(&self, key: $fldKeyRef$fldKeyParamLangType) -> Sc$mut$FldType {
+        Sc$mut$FldType::new(self.proxy.key(&$fld_map_key$+_to_bytes(key)))
     }
 `,
 	// *******************************
 	"typedefProxyMapNewOtherType": `
-$#set old_type $fld_type
-$#set OldType $FldType
-$#set oldMapKeyLangType $fldMapKeyLangType
-$#set oldMapKeyKey $fldMapKeyKey
-$#if typedef typedefProxyMapNewOtherTypeTypeDef typedefProxyMapNewOtherTypeStruct
-`,
-	// *******************************
-	"typedefProxyMapNewOtherTypeTypeDef": `
-$#set varType TYPE_MAP
-$#if array setVarTypeArray
-    pub fn get_$old_type(&self, key: $oldMapKeyLangType) -> $mut$OldType {
-        let sub_id = get_object_id(self.obj_id, key.get_key_id(), $varType);
-        $mut$OldType { obj_id: sub_id }
+    pub fn get_$fld_type(&self, key: $fldKeyRef$fldKeyParamLangType) -> $mut$FldType {
+        $mut$FldType { proxy: self.proxy.key(&$fld_map_key$+_to_bytes(key)) }
     }
-`,
-	// *******************************
-	"typedefProxyMapNewOtherTypeStruct": `
-    pub fn get_$old_type(&self, key: $oldMapKeyLangType) -> $mut$OldType {
-        $mut$OldType { obj_id: self.obj_id, key_id: key.get_key_id() }
-    }
-`,
-	// *******************************
-	"setVarTypeArray": `
-$#set varType $arrayTypeID | $fldTypeID
 `,
 }

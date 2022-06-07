@@ -1,9 +1,19 @@
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 package chain
 
 import (
 	"os"
 
+	"github.com/iotaledger/wasp/client"
 	"github.com/iotaledger/wasp/packages/apilib"
+	"github.com/iotaledger/wasp/packages/evm/evmtypes"
+	"github.com/iotaledger/wasp/packages/kv/codec"
+	"github.com/iotaledger/wasp/packages/kv/dict"
+	"github.com/iotaledger/wasp/packages/vm/core/evm"
+	"github.com/iotaledger/wasp/packages/vm/core/root"
+	"github.com/iotaledger/wasp/tools/evm/evmcli"
 	"github.com/iotaledger/wasp/tools/wasp-cli/config"
 	"github.com/iotaledger/wasp/tools/wasp-cli/log"
 	"github.com/iotaledger/wasp/tools/wasp-cli/wallet"
@@ -12,10 +22,10 @@ import (
 
 func deployCmd() *cobra.Command {
 	var (
-		peers       []int
 		committee   []int
 		quorum      int
 		description string
+		evmParams   evmcli.DeployParams
 	)
 
 	cmd := &cobra.Command{
@@ -25,39 +35,43 @@ func deployCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			alias := GetChainAlias()
 
-			if peers == nil {
-				if committee != nil {
-					peers = committee
-				} else {
-					peers = []int{0, 1, 2, 3}
-				}
+			if committee == nil {
+				committee = []int{0, 1, 2, 3}
 			}
 
-			if committee == nil {
-				committee = peers
+			committeePubKeys := make([]string, 0)
+			for _, api := range config.CommitteeAPI(committee) {
+				peerInfo, err := client.NewWaspClient(api).GetPeeringSelf()
+				log.Check(err)
+				committeePubKeys = append(committeePubKeys, peerInfo.PubKey)
 			}
 
 			chainid, _, err := apilib.DeployChainWithDKG(apilib.CreateChainParams{
-				Node:                  config.GoshimmerClient(),
-				AllAPIHosts:           config.CommitteeAPI(peers),
-				AllPeeringHosts:       config.CommitteePeering(peers),
-				CommitteeAPIHosts:     config.CommitteeAPI(committee),
-				CommitteePeeringHosts: config.CommitteePeering(committee),
-				N:                     uint16(len(committee)),
-				T:                     uint16(quorum),
-				OriginatorKeyPair:     wallet.Load().KeyPair(),
-				Description:           description,
-				Textout:               os.Stdout,
+				Layer1Client:      config.L1Client(),
+				CommitteeAPIHosts: config.CommitteeAPI(committee),
+				CommitteePubKeys:  committeePubKeys,
+				N:                 uint16(len(committee)),
+				T:                 uint16(quorum),
+				OriginatorKeyPair: wallet.Load().KeyPair,
+				Description:       description,
+				Textout:           os.Stdout,
+				InitParams: dict.Dict{
+					root.ParamEVM(evm.FieldChainID):         codec.EncodeUint16(uint16(evmParams.ChainID)),
+					root.ParamEVM(evm.FieldGenesisAlloc):    evmtypes.EncodeGenesisAlloc(evmParams.GetGenesis(nil)),
+					root.ParamEVM(evm.FieldBlockGasLimit):   codec.EncodeUint64(evmParams.BlockGasLimit),
+					root.ParamEVM(evm.FieldBlockKeepAmount): codec.EncodeInt32(evmParams.BlockKeepAmount),
+					root.ParamEVM(evm.FieldGasRatio):        codec.EncodeRatio32(evmParams.GasRatio),
+				},
 			})
 			log.Check(err)
 
-			AddChainAlias(alias, chainid.Base58())
+			AddChainAlias(alias, chainid.String())
 		},
 	}
 
-	cmd.Flags().IntSliceVarP(&peers, "peers", "", nil, "indices of peer nodes (default: 0,1,2,3)")
-	cmd.Flags().IntSliceVarP(&committee, "committee", "", nil, "subset of peers acting as committee nodes  (default: same as peers)")
+	cmd.Flags().IntSliceVarP(&committee, "committee", "", nil, "peers acting as committee nodes  (default: 0,1,2,3)")
 	cmd.Flags().IntVarP(&quorum, "quorum", "", 3, "quorum")
 	cmd.Flags().StringVarP(&description, "description", "", "", "description")
+	evmParams.InitFlags(cmd)
 	return cmd
 }

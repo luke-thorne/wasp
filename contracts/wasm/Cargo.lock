@@ -29,6 +29,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "corecontracts"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "wasm-bindgen-test",
+ "wasmlib 0.1.0",
+ "wee_alloc",
+]
+
+[[package]]
 name = "dividend"
 version = "0.1.0"
 dependencies = [
@@ -50,6 +60,16 @@ dependencies = [
 
 [[package]]
 name = "erc20"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "wasm-bindgen-test",
+ "wasmlib 0.1.0",
+ "wee_alloc",
+]
+
+[[package]]
+name = "erc721"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
@@ -153,6 +173,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "schemacomment"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "wasm-bindgen-test",
+ "wasmlib 0.1.0 (git+https://github.com/iotaledger/wasp?branch=develop)",
+ "wee_alloc",
+]
+
+[[package]]
 name = "scoped-tls"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -195,7 +225,7 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen-test",
- "wasmlib 0.1.0 (git+https://github.com/iotaledger/wasp?branch=develop)",
+ "wasmlib 0.1.0",
  "wee_alloc",
 ]
 
@@ -316,7 +346,7 @@ dependencies = [
 [[package]]
 name = "wasmlib"
 version = "0.1.0"
-source = "git+https://github.com/iotaledger/wasp?branch=develop#5a3a452307070ea2895e7c4da2f05989c662aad1"
+source = "git+https://github.com/iotaledger/wasp?branch=develop#dca8bf195c29e51729a3613b13f9882b161f8879"
 dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen",

@@ -1,9 +1,13 @@
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 // in the blocklog core contract the VM keeps indices of blocks and requests in an optimized way
 // for fast checking and timestamp access.
 package governance
 
 import (
 	"github.com/iotaledger/wasp/packages/iscp/coreutil"
+	"github.com/iotaledger/wasp/packages/kv"
 )
 
 // constants
@@ -22,21 +26,27 @@ var (
 	FuncRotateStateController               = coreutil.Func(coreutil.CoreEPRotateStateController)
 	FuncAddAllowedStateControllerAddress    = coreutil.Func("addAllowedStateControllerAddress")
 	FuncRemoveAllowedStateControllerAddress = coreutil.Func("removeAllowedStateControllerAddress")
-	FuncGetAllowedStateControllerAddresses  = coreutil.ViewFunc("getAllowedStateControllerAddresses")
+	ViewGetAllowedStateControllerAddresses  = coreutil.ViewFunc("getAllowedStateControllerAddresses")
 
 	// chain owner (L1 entity that is the "owner of the chain")
 	FuncClaimChainOwnership    = coreutil.Func("claimChainOwnership")
 	FuncDelegateChainOwnership = coreutil.Func("delegateChainOwnership")
-	FuncGetChainOwner          = coreutil.ViewFunc("getChainOwner")
+	ViewGetChainOwner          = coreutil.ViewFunc("getChainOwner")
 
 	// fees
-	FuncSetContractFee = coreutil.Func("setContractFee")
-	FuncGetFeeInfo     = coreutil.ViewFunc("getFeeInfo")
+	FuncSetFeePolicy = coreutil.Func("setFeePolicy")
+	ViewGetFeePolicy = coreutil.ViewFunc("getFeePolicy")
 
 	// chain info
 	FuncSetChainInfo   = coreutil.Func("setChainInfo")
-	FuncGetChainInfo   = coreutil.ViewFunc("getChainInfo")
-	FuncGetMaxBlobSize = coreutil.ViewFunc("getMaxBlobSize")
+	ViewGetChainInfo   = coreutil.ViewFunc("getChainInfo")
+	ViewGetMaxBlobSize = coreutil.ViewFunc("getMaxBlobSize")
+
+	// access nodes
+	FuncAddCandidateNode  = coreutil.Func("addCandidateNode")
+	FuncRevokeAccessNode  = coreutil.Func("revokeAccessNode")
+	FuncChangeAccessNodes = coreutil.Func("changeAccessNodes")
+	ViewGetChainNodes     = coreutil.ViewFunc("getChainNodes")
 )
 
 // state variables
@@ -48,14 +58,9 @@ const (
 	// chain owner
 	VarChainOwnerID          = "o"
 	VarChainOwnerIDDelegated = "n"
-	VarDefaultOwnerFee       = "do"
-	VarOwnerFee              = "of"
 
 	// fees
-	VarDefaultValidatorFee  = "dv"
-	VarValidatorFee         = "vf"
-	VarFeeColor             = "f"
-	VarContractFeesRegistry = "fr"
+	VarGasFeePolicyBytes = "g"
 
 	// chain info
 	VarChainID         = "c"
@@ -63,27 +68,40 @@ const (
 	VarMaxBlobSize     = "mb"
 	VarMaxEventSize    = "me"
 	VarMaxEventsPerReq = "mr"
+
+	// access nodes
+	VarAccessNodes          = "an"
+	VarAccessNodeCandidates = "ac"
 )
 
 // params
 const (
 	// state controller
 	ParamStateControllerAddress          = coreutil.ParamStateControllerAddress
-	ParamAllowedStateControllerAddresses = "a"
+	ParamAllowedStateControllerAddresses = kv.Key('a' + iota)
 
 	// chain owner
-	ParamChainOwner = "oi"
-	ParamOwnerFee   = "of"
+	ParamChainOwner
 
 	// fees
-	ParamFeeColor     = "fc"
-	ParamValidatorFee = "vf"
-	ParamHname        = "hn"
+	ParamFeePolicyBytes
 
 	// chain info
-	ParamChainID             = "ci"
-	ParamDescription         = "ds"
-	ParamMaxBlobSize         = "bs"
-	ParamMaxEventSize        = "es"
-	ParamMaxEventsPerRequest = "ne"
+	ParamChainID
+	ParamDescription
+	ParamMaxBlobSizeUint32
+	ParamMaxEventSizeUint16
+	ParamMaxEventsPerRequestUint16
+
+	ParamGetChainNodesAccessNodeCandidates
+	ParamGetChainNodesAccessNodes
+
+	// access nodes: addCandidateNode
+	ParamAccessNodeInfoForCommittee
+	ParamAccessNodeInfoPubKey
+	ParamAccessNodeInfoCertificate
+	ParamAccessNodeInfoAccessAPI
+
+	// access nodes: changeAccessNodes
+	ParamChangeAccessNodesActions
 )

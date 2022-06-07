@@ -1,8 +1,8 @@
 ---
 description: There currently are 6 core smart contracts that are always deployed on each  chain, root, _default, accounts, blob, blocklog, and governance.
-image: /img/logo/WASP_logo_dark.png
+image: /img/Banner/banner_wasp_core_contracts_overview.png
 keywords:
-- ISCP
+- smart contracts
 - core
 - initialization
 - request handling
@@ -10,17 +10,17 @@ keywords:
 - accounts
 - data
 - receipts
+- reference
 --- 
 # Core Contracts
+
+![Wasp Node Core Contracts Overview](/img/Banner/banner_wasp_core_contracts_overview.png)
 
 There are currently 6 core smart contracts that are always deployed on each
 chain. These are responsible for the vital functions of the chain and
 provide infrastructure for all other smart contracts:
 
 - [__root__](root.md) - Responsible for the initialization of the chain, maintains registry of deployed contracts.
-
-- [___default__](default.md): Any request that cannot be handled by any of the
-  other deployed contracts ends up here.
 
 - [__accounts__](accounts.md): Responsible for the on-chain ledger of accounts (who owns what).
 

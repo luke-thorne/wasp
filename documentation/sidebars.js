@@ -31,8 +31,8 @@ module.exports = {
                 },
                 {
                     type: 'doc',
-                    label: 'ISCP Architecture',
-                    id: 'guide/core_concepts/iscp-architecture',
+                    label: 'ISC Architecture',
+                    id: 'guide/core_concepts/isc-architecture',
                 },
                 {
                     type: 'doc',
@@ -56,6 +56,11 @@ module.exports = {
                 },
                 {
                     type: 'doc',
+                    label: 'Smart Contracts Invocation',
+                    id: 'guide/core_concepts/invocation',
+                },
+                {
+                    type: 'doc',
                     label: 'Sandbox Interface',
                     id: 'guide/core_concepts/sandbox'
                 },
@@ -72,11 +77,6 @@ module.exports = {
                             type: 'doc',
                             label: 'Root',
                             id: 'guide/core_concepts/core_contracts/root',
-                        },
-                        {
-                            type: 'doc',
-                            label: 'Default',
-                            id: 'guide/core_concepts/core_contracts/default',
                         },
                         {
                             type: 'doc',
@@ -133,22 +133,6 @@ module.exports = {
                 },
                 {
                     type: 'category',
-                    label: 'Interacting With Smart Contracts',
-                    items: [
-                        {
-                            type: 'doc',
-                            label: 'On-ledger Requests',
-                            id: 'guide/core_concepts/smartcontract-interaction/on-ledger-requests',
-                        },
-                        {
-                            type: 'doc',
-                            label: 'Off-ledger Requests',
-                            id: 'guide/core_concepts/smartcontract-interaction/off-ledger-requests',
-                        }
-                    ]
-                },
-                {
-                    type: 'category',
                     label: 'Solo',
                     items: [
                         {
@@ -198,7 +182,7 @@ module.exports = {
                         },
                         {
                             type: 'doc',
-                            label: 'Sending tokens from ISCP to the Tangle',
+                            label: 'Sending tokens from ISC to the Tangle',
                             id: 'guide/solo/sending-funds-sc'
                         },
                     ]
@@ -207,7 +191,7 @@ module.exports = {
         },
         {
             type: 'category',
-            label: 'ISCP Chains and Nodes',
+            label: 'ISC Chains and Nodes',
             items: [
                 {
                     type: 'doc',
@@ -216,8 +200,8 @@ module.exports = {
                 },
                 {
                     type: 'doc',
-                    label: 'Using Docker',
-                    id: 'guide/chains_and_nodes/docker',
+                    label: 'Using Docker (Standalone)',
+                    id: 'guide/chains_and_nodes/docker_standalone',
                 },
                 {
                     type: 'doc',
@@ -251,7 +235,7 @@ module.exports = {
                     items: [
                         {
                             type: 'doc',
-                            label: 'Wasm VM for ISCP',
+                            label: 'Wasm VM for ISC',
                             id: 'guide/wasm_vm/intro',
                         },
                         {
@@ -270,12 +254,12 @@ module.exports = {
                             id: 'guide/wasm_vm/context',
                         },
                     ]
-                 },
+                },
                 {
                     type: 'category',
                     label: 'Schema tool',
                     items: [
-                       {
+                        {
                             type: 'doc',
                             label: 'Smart Contract Schema Tool',
                             id: 'guide/schema/schema',
@@ -299,6 +283,11 @@ module.exports = {
                             type: 'doc',
                             label: 'Smart Contract State',
                             id: 'guide/schema/state',
+                        },
+                        {
+                            type: 'doc',
+                            label: 'Triggering Events',
+                            id: 'guide/schema/events',
                         },
                         {
                             type: 'doc',
@@ -412,6 +401,11 @@ module.exports = {
                             label: 'ERC20',
                             id: 'guide/evm/examples/ERC20',
                         },
+                        {
+                            type: 'doc',
+                            label: 'ERC721',
+                            id: 'guide/evm/examples/ERC721',
+                        },
                     ]
                 },
             ]
@@ -424,6 +418,17 @@ module.exports = {
                     type: 'doc',
                     label: 'Fair Roulette',
                     id: 'guide/example_projects/fair_roulette',
+                },
+            ]
+        },
+        {
+            type: 'category',
+            label: 'Development tools',
+            items: [
+                {
+                    type: 'doc',
+                    label: 'Preconfigured Development Docker setup',
+                    id: 'guide/development_tools/docker_preconfigured',
                 },
             ]
         },

@@ -7,7 +7,7 @@
 
 package dividend
 
-import "github.com/iotaledger/wasp/packages/vm/wasmlib/go/wasmlib"
+import "github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib"
 
 type DivideCall struct {
 	Func *wasmlib.ScFunc
@@ -43,36 +43,38 @@ type Funcs struct{}
 
 var ScFuncs Funcs
 
+// divide tokens over members
 func (sc Funcs) Divide(ctx wasmlib.ScFuncCallContext) *DivideCall {
 	return &DivideCall{Func: wasmlib.NewScFunc(ctx, HScName, HFuncDivide)}
 }
 
 func (sc Funcs) Init(ctx wasmlib.ScFuncCallContext) *InitCall {
-	f := &InitCall{Func: wasmlib.NewScInitFunc(ctx, HScName, HFuncInit, keyMap[:], idxMap[:])}
-	f.Func.SetPtrs(&f.Params.id, nil)
+	f := &InitCall{Func: wasmlib.NewScInitFunc(ctx, HScName, HFuncInit)}
+	f.Params.proxy = wasmlib.NewCallParamsProxy(&f.Func.ScView)
 	return f
 }
 
 func (sc Funcs) Member(ctx wasmlib.ScFuncCallContext) *MemberCall {
 	f := &MemberCall{Func: wasmlib.NewScFunc(ctx, HScName, HFuncMember)}
-	f.Func.SetPtrs(&f.Params.id, nil)
+	f.Params.proxy = wasmlib.NewCallParamsProxy(&f.Func.ScView)
 	return f
 }
 
 func (sc Funcs) SetOwner(ctx wasmlib.ScFuncCallContext) *SetOwnerCall {
 	f := &SetOwnerCall{Func: wasmlib.NewScFunc(ctx, HScName, HFuncSetOwner)}
-	f.Func.SetPtrs(&f.Params.id, nil)
+	f.Params.proxy = wasmlib.NewCallParamsProxy(&f.Func.ScView)
 	return f
 }
 
 func (sc Funcs) GetFactor(ctx wasmlib.ScViewCallContext) *GetFactorCall {
 	f := &GetFactorCall{Func: wasmlib.NewScView(ctx, HScName, HViewGetFactor)}
-	f.Func.SetPtrs(&f.Params.id, &f.Results.id)
+	f.Params.proxy = wasmlib.NewCallParamsProxy(f.Func)
+	wasmlib.NewCallResultsProxy(f.Func, &f.Results.proxy)
 	return f
 }
 
 func (sc Funcs) GetOwner(ctx wasmlib.ScViewCallContext) *GetOwnerCall {
 	f := &GetOwnerCall{Func: wasmlib.NewScView(ctx, HScName, HViewGetOwner)}
-	f.Func.SetPtrs(nil, &f.Results.id)
+	wasmlib.NewCallResultsProxy(f.Func, &f.Results.proxy)
 	return f
 }

@@ -5,105 +5,119 @@
 // >>>> DO NOT CHANGE THIS FILE! <<<<
 // Change the json schema instead
 
-import * as wasmlib from "wasmlib";
+import * as wasmtypes from "wasmlib/wasmtypes";
 import * as sc from "./index";
 
-export class ImmutableGetInfoResults extends wasmlib.ScMapID {
-    bidders(): wasmlib.ScImmutableInt32 {
-		return new wasmlib.ScImmutableInt32(this.mapID, sc.idxMap[sc.IdxResultBidders]);
+export class ImmutableGetAuctionInfoResults extends wasmtypes.ScProxy {
+	// nr of bidders
+	bidders(): wasmtypes.ScImmutableUint32 {
+		return new wasmtypes.ScImmutableUint32(this.proxy.root(sc.ResultBidders));
 	}
 
-    color(): wasmlib.ScImmutableColor {
-		return new wasmlib.ScImmutableColor(this.mapID, sc.idxMap[sc.IdxResultColor]);
+	// issuer of start_auction transaction
+	creator(): wasmtypes.ScImmutableAgentID {
+		return new wasmtypes.ScImmutableAgentID(this.proxy.root(sc.ResultCreator));
 	}
 
-    creator(): wasmlib.ScImmutableAgentID {
-		return new wasmlib.ScImmutableAgentID(this.mapID, sc.idxMap[sc.IdxResultCreator]);
+	// deposit by auction owner to cover the SC fees
+	deposit(): wasmtypes.ScImmutableUint64 {
+		return new wasmtypes.ScImmutableUint64(this.proxy.root(sc.ResultDeposit));
 	}
 
-    deposit(): wasmlib.ScImmutableInt64 {
-		return new wasmlib.ScImmutableInt64(this.mapID, sc.idxMap[sc.IdxResultDeposit]);
+	// auction description
+	description(): wasmtypes.ScImmutableString {
+		return new wasmtypes.ScImmutableString(this.proxy.root(sc.ResultDescription));
 	}
 
-    description(): wasmlib.ScImmutableString {
-		return new wasmlib.ScImmutableString(this.mapID, sc.idxMap[sc.IdxResultDescription]);
+	// auction duration in minutes
+	duration(): wasmtypes.ScImmutableUint32 {
+		return new wasmtypes.ScImmutableUint32(this.proxy.root(sc.ResultDuration));
 	}
 
-    duration(): wasmlib.ScImmutableInt32 {
-		return new wasmlib.ScImmutableInt32(this.mapID, sc.idxMap[sc.IdxResultDuration]);
+	// the current highest bid amount
+	highestBid(): wasmtypes.ScImmutableUint64 {
+		return new wasmtypes.ScImmutableUint64(this.proxy.root(sc.ResultHighestBid));
 	}
 
-    highestBid(): wasmlib.ScImmutableInt64 {
-		return new wasmlib.ScImmutableInt64(this.mapID, sc.idxMap[sc.IdxResultHighestBid]);
+	// the current highest bidder
+	highestBidder(): wasmtypes.ScImmutableAgentID {
+		return new wasmtypes.ScImmutableAgentID(this.proxy.root(sc.ResultHighestBidder));
 	}
 
-    highestBidder(): wasmlib.ScImmutableAgentID {
-		return new wasmlib.ScImmutableAgentID(this.mapID, sc.idxMap[sc.IdxResultHighestBidder]);
+	// minimum bid amount
+	minimumBid(): wasmtypes.ScImmutableUint64 {
+		return new wasmtypes.ScImmutableUint64(this.proxy.root(sc.ResultMinimumBid));
 	}
 
-    minimumBid(): wasmlib.ScImmutableInt64 {
-		return new wasmlib.ScImmutableInt64(this.mapID, sc.idxMap[sc.IdxResultMinimumBid]);
+	// NFT of NFTs for sale
+	nft(): wasmtypes.ScImmutableNftID {
+		return new wasmtypes.ScImmutableNftID(this.proxy.root(sc.ResultNft));
 	}
 
-    numTokens(): wasmlib.ScImmutableInt64 {
-		return new wasmlib.ScImmutableInt64(this.mapID, sc.idxMap[sc.IdxResultNumTokens]);
+	// auction owner's margin in promilles
+	ownerMargin(): wasmtypes.ScImmutableUint64 {
+		return new wasmtypes.ScImmutableUint64(this.proxy.root(sc.ResultOwnerMargin));
 	}
 
-    ownerMargin(): wasmlib.ScImmutableInt64 {
-		return new wasmlib.ScImmutableInt64(this.mapID, sc.idxMap[sc.IdxResultOwnerMargin]);
-	}
-
-    whenStarted(): wasmlib.ScImmutableInt64 {
-		return new wasmlib.ScImmutableInt64(this.mapID, sc.idxMap[sc.IdxResultWhenStarted]);
+	// timestamp when auction started
+	whenStarted(): wasmtypes.ScImmutableUint64 {
+		return new wasmtypes.ScImmutableUint64(this.proxy.root(sc.ResultWhenStarted));
 	}
 }
 
-export class MutableGetInfoResults extends wasmlib.ScMapID {
-    bidders(): wasmlib.ScMutableInt32 {
-		return new wasmlib.ScMutableInt32(this.mapID, sc.idxMap[sc.IdxResultBidders]);
+export class MutableGetAuctionInfoResults extends wasmtypes.ScProxy {
+	// nr of bidders
+	bidders(): wasmtypes.ScMutableUint32 {
+		return new wasmtypes.ScMutableUint32(this.proxy.root(sc.ResultBidders));
 	}
 
-    color(): wasmlib.ScMutableColor {
-		return new wasmlib.ScMutableColor(this.mapID, sc.idxMap[sc.IdxResultColor]);
+	// issuer of start_auction transaction
+	creator(): wasmtypes.ScMutableAgentID {
+		return new wasmtypes.ScMutableAgentID(this.proxy.root(sc.ResultCreator));
 	}
 
-    creator(): wasmlib.ScMutableAgentID {
-		return new wasmlib.ScMutableAgentID(this.mapID, sc.idxMap[sc.IdxResultCreator]);
+	// deposit by auction owner to cover the SC fees
+	deposit(): wasmtypes.ScMutableUint64 {
+		return new wasmtypes.ScMutableUint64(this.proxy.root(sc.ResultDeposit));
 	}
 
-    deposit(): wasmlib.ScMutableInt64 {
-		return new wasmlib.ScMutableInt64(this.mapID, sc.idxMap[sc.IdxResultDeposit]);
+	// auction description
+	description(): wasmtypes.ScMutableString {
+		return new wasmtypes.ScMutableString(this.proxy.root(sc.ResultDescription));
 	}
 
-    description(): wasmlib.ScMutableString {
-		return new wasmlib.ScMutableString(this.mapID, sc.idxMap[sc.IdxResultDescription]);
+	// auction duration in minutes
+	duration(): wasmtypes.ScMutableUint32 {
+		return new wasmtypes.ScMutableUint32(this.proxy.root(sc.ResultDuration));
 	}
 
-    duration(): wasmlib.ScMutableInt32 {
-		return new wasmlib.ScMutableInt32(this.mapID, sc.idxMap[sc.IdxResultDuration]);
+	// the current highest bid amount
+	highestBid(): wasmtypes.ScMutableUint64 {
+		return new wasmtypes.ScMutableUint64(this.proxy.root(sc.ResultHighestBid));
 	}
 
-    highestBid(): wasmlib.ScMutableInt64 {
-		return new wasmlib.ScMutableInt64(this.mapID, sc.idxMap[sc.IdxResultHighestBid]);
+	// the current highest bidder
+	highestBidder(): wasmtypes.ScMutableAgentID {
+		return new wasmtypes.ScMutableAgentID(this.proxy.root(sc.ResultHighestBidder));
 	}
 
-    highestBidder(): wasmlib.ScMutableAgentID {
-		return new wasmlib.ScMutableAgentID(this.mapID, sc.idxMap[sc.IdxResultHighestBidder]);
+	// minimum bid amount
+	minimumBid(): wasmtypes.ScMutableUint64 {
+		return new wasmtypes.ScMutableUint64(this.proxy.root(sc.ResultMinimumBid));
 	}
 
-    minimumBid(): wasmlib.ScMutableInt64 {
-		return new wasmlib.ScMutableInt64(this.mapID, sc.idxMap[sc.IdxResultMinimumBid]);
+	// NFT of NFTs for sale
+	nft(): wasmtypes.ScMutableNftID {
+		return new wasmtypes.ScMutableNftID(this.proxy.root(sc.ResultNft));
 	}
 
-    numTokens(): wasmlib.ScMutableInt64 {
-		return new wasmlib.ScMutableInt64(this.mapID, sc.idxMap[sc.IdxResultNumTokens]);
+	// auction owner's margin in promilles
+	ownerMargin(): wasmtypes.ScMutableUint64 {
+		return new wasmtypes.ScMutableUint64(this.proxy.root(sc.ResultOwnerMargin));
 	}
 
-    ownerMargin(): wasmlib.ScMutableInt64 {
-		return new wasmlib.ScMutableInt64(this.mapID, sc.idxMap[sc.IdxResultOwnerMargin]);
-	}
-
-    whenStarted(): wasmlib.ScMutableInt64 {
-		return new wasmlib.ScMutableInt64(this.mapID, sc.idxMap[sc.IdxResultWhenStarted]);
+	// timestamp when auction started
+	whenStarted(): wasmtypes.ScMutableUint64 {
+		return new wasmtypes.ScMutableUint64(this.proxy.root(sc.ResultWhenStarted));
 	}
 }

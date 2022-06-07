@@ -7,25 +7,24 @@
 
 package fairauction
 
-import "github.com/iotaledger/wasp/packages/vm/wasmlib/go/wasmlib"
+import "github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib/wasmtypes"
 
 const (
 	ScName        = "fairauction"
-	ScDescription = "Decentralized auction to securely sell tokens to the highest bidder"
-	HScName       = wasmlib.ScHname(0x1b5c43b1)
+	ScDescription = "Decentralized auction to securely sell NFTs to the highest bidder"
+	HScName       = wasmtypes.ScHname(0x1b5c43b1)
 )
 
 const (
-	ParamColor       = "color"
 	ParamDescription = "description"
 	ParamDuration    = "duration"
 	ParamMinimumBid  = "minimumBid"
+	ParamNft         = "nft"
 	ParamOwnerMargin = "ownerMargin"
 )
 
 const (
 	ResultBidders       = "bidders"
-	ResultColor         = "color"
 	ResultCreator       = "creator"
 	ResultDeposit       = "deposit"
 	ResultDescription   = "description"
@@ -33,7 +32,7 @@ const (
 	ResultHighestBid    = "highestBid"
 	ResultHighestBidder = "highestBidder"
 	ResultMinimumBid    = "minimumBid"
-	ResultNumTokens     = "numTokens"
+	ResultNft           = "nft"
 	ResultOwnerMargin   = "ownerMargin"
 	ResultWhenStarted   = "whenStarted"
 )
@@ -50,13 +49,13 @@ const (
 	FuncPlaceBid        = "placeBid"
 	FuncSetOwnerMargin  = "setOwnerMargin"
 	FuncStartAuction    = "startAuction"
-	ViewGetInfo         = "getInfo"
+	ViewGetAuctionInfo  = "getAuctionInfo"
 )
 
 const (
-	HFuncFinalizeAuction = wasmlib.ScHname(0x8d534ddc)
-	HFuncPlaceBid        = wasmlib.ScHname(0x9bd72fa9)
-	HFuncSetOwnerMargin  = wasmlib.ScHname(0x1774461a)
-	HFuncStartAuction    = wasmlib.ScHname(0xd5b7bacb)
-	HViewGetInfo         = wasmlib.ScHname(0xcfedba5f)
+	HFuncFinalizeAuction = wasmtypes.ScHname(0x8d534ddc)
+	HFuncPlaceBid        = wasmtypes.ScHname(0x9bd72fa9)
+	HFuncSetOwnerMargin  = wasmtypes.ScHname(0x1774461a)
+	HFuncStartAuction    = wasmtypes.ScHname(0xd5b7bacb)
+	HViewGetAuctionInfo  = wasmtypes.ScHname(0xd1f16936)
 )

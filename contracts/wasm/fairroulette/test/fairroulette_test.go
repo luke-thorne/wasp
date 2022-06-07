@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/iotaledger/wasp/contracts/wasm/fairroulette/go/fairroulette"
-	"github.com/iotaledger/wasp/packages/vm/wasmsolo"
+	"github.com/iotaledger/wasp/packages/wasmvm/wasmsolo"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,9 +28,11 @@ func TestBets(t *testing.T) {
 		better[i] = ctx.NewSoloAgent()
 		placeBet := fairroulette.ScFuncs.PlaceBet(ctx.Sign(better[i]))
 		placeBet.Params.Number().SetValue(3)
-		placeBet.Func.TransferIotas(25).Post()
+		placeBet.Func.TransferIotas(1234).Post()
 		require.NoError(t, ctx.Err)
 	}
+
+	// wait for finalize_auction
 	ctx.AdvanceClockBy(1201 * time.Second)
 	require.True(t, ctx.WaitForPendingRequests(1))
 }

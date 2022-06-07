@@ -9,137 +9,135 @@
 #![allow(unused_imports)]
 
 use wasmlib::*;
-use wasmlib::host::*;
 
 use crate::*;
-use crate::keys::*;
-use crate::structs::*;
-use crate::typedefs::*;
 
-pub struct MapColorToImmutableAuction {
-	pub(crate) obj_id: i32,
+#[derive(Clone)]
+pub struct MapNftIDToImmutableAuction {
+	pub(crate) proxy: Proxy,
 }
 
-impl MapColorToImmutableAuction {
-    pub fn get_auction(&self, key: &ScColor) -> ImmutableAuction {
-        ImmutableAuction { obj_id: self.obj_id, key_id: key.get_key_id() }
+impl MapNftIDToImmutableAuction {
+    pub fn get_auction(&self, key: &ScNftID) -> ImmutableAuction {
+        ImmutableAuction { proxy: self.proxy.key(&nft_id_to_bytes(key)) }
     }
 }
 
-pub struct MapColorToImmutableBidderList {
-	pub(crate) obj_id: i32,
+#[derive(Clone)]
+pub struct MapNftIDToImmutableBidderList {
+	pub(crate) proxy: Proxy,
 }
 
-impl MapColorToImmutableBidderList {
-    pub fn get_bidder_list(&self, key: &ScColor) -> ImmutableBidderList {
-        let sub_id = get_object_id(self.obj_id, key.get_key_id(), TYPE_ARRAY | TYPE_AGENT_ID);
-        ImmutableBidderList { obj_id: sub_id }
+impl MapNftIDToImmutableBidderList {
+    pub fn get_bidder_list(&self, key: &ScNftID) -> ImmutableBidderList {
+        ImmutableBidderList { proxy: self.proxy.key(&nft_id_to_bytes(key)) }
     }
 }
 
-pub struct MapColorToImmutableBids {
-	pub(crate) obj_id: i32,
+#[derive(Clone)]
+pub struct MapNftIDToImmutableBids {
+	pub(crate) proxy: Proxy,
 }
 
-impl MapColorToImmutableBids {
-    pub fn get_bids(&self, key: &ScColor) -> ImmutableBids {
-        let sub_id = get_object_id(self.obj_id, key.get_key_id(), TYPE_MAP);
-        ImmutableBids { obj_id: sub_id }
+impl MapNftIDToImmutableBids {
+    pub fn get_bids(&self, key: &ScNftID) -> ImmutableBids {
+        ImmutableBids { proxy: self.proxy.key(&nft_id_to_bytes(key)) }
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableFairAuctionState {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableFairAuctionState {
-    pub fn auctions(&self) -> MapColorToImmutableAuction {
-		let map_id = get_object_id(self.id, idx_map(IDX_STATE_AUCTIONS), TYPE_MAP);
-		MapColorToImmutableAuction { obj_id: map_id }
+    pub fn auctions(&self) -> MapNftIDToImmutableAuction {
+		MapNftIDToImmutableAuction { proxy: self.proxy.root(STATE_AUCTIONS) }
 	}
 
-    pub fn bidder_list(&self) -> MapColorToImmutableBidderList {
-		let map_id = get_object_id(self.id, idx_map(IDX_STATE_BIDDER_LIST), TYPE_MAP);
-		MapColorToImmutableBidderList { obj_id: map_id }
+    pub fn bidder_list(&self) -> MapNftIDToImmutableBidderList {
+		MapNftIDToImmutableBidderList { proxy: self.proxy.root(STATE_BIDDER_LIST) }
 	}
 
-    pub fn bids(&self) -> MapColorToImmutableBids {
-		let map_id = get_object_id(self.id, idx_map(IDX_STATE_BIDS), TYPE_MAP);
-		MapColorToImmutableBids { obj_id: map_id }
+    pub fn bids(&self) -> MapNftIDToImmutableBids {
+		MapNftIDToImmutableBids { proxy: self.proxy.root(STATE_BIDS) }
 	}
 
-    pub fn owner_margin(&self) -> ScImmutableInt64 {
-		ScImmutableInt64::new(self.id, idx_map(IDX_STATE_OWNER_MARGIN))
+    // default auction owner's margin in promilles
+    pub fn owner_margin(&self) -> ScImmutableUint64 {
+		ScImmutableUint64::new(self.proxy.root(STATE_OWNER_MARGIN))
 	}
 }
 
-pub struct MapColorToMutableAuction {
-	pub(crate) obj_id: i32,
+#[derive(Clone)]
+pub struct MapNftIDToMutableAuction {
+	pub(crate) proxy: Proxy,
 }
 
-impl MapColorToMutableAuction {
+impl MapNftIDToMutableAuction {
     pub fn clear(&self) {
-        clear(self.obj_id);
+        self.proxy.clear_map();
     }
 
-    pub fn get_auction(&self, key: &ScColor) -> MutableAuction {
-        MutableAuction { obj_id: self.obj_id, key_id: key.get_key_id() }
+    pub fn get_auction(&self, key: &ScNftID) -> MutableAuction {
+        MutableAuction { proxy: self.proxy.key(&nft_id_to_bytes(key)) }
     }
 }
 
-pub struct MapColorToMutableBidderList {
-	pub(crate) obj_id: i32,
+#[derive(Clone)]
+pub struct MapNftIDToMutableBidderList {
+	pub(crate) proxy: Proxy,
 }
 
-impl MapColorToMutableBidderList {
+impl MapNftIDToMutableBidderList {
     pub fn clear(&self) {
-        clear(self.obj_id);
+        self.proxy.clear_map();
     }
 
-    pub fn get_bidder_list(&self, key: &ScColor) -> MutableBidderList {
-        let sub_id = get_object_id(self.obj_id, key.get_key_id(), TYPE_ARRAY | TYPE_AGENT_ID);
-        MutableBidderList { obj_id: sub_id }
+    pub fn get_bidder_list(&self, key: &ScNftID) -> MutableBidderList {
+        MutableBidderList { proxy: self.proxy.key(&nft_id_to_bytes(key)) }
     }
 }
 
-pub struct MapColorToMutableBids {
-	pub(crate) obj_id: i32,
+#[derive(Clone)]
+pub struct MapNftIDToMutableBids {
+	pub(crate) proxy: Proxy,
 }
 
-impl MapColorToMutableBids {
+impl MapNftIDToMutableBids {
     pub fn clear(&self) {
-        clear(self.obj_id);
+        self.proxy.clear_map();
     }
 
-    pub fn get_bids(&self, key: &ScColor) -> MutableBids {
-        let sub_id = get_object_id(self.obj_id, key.get_key_id(), TYPE_MAP);
-        MutableBids { obj_id: sub_id }
+    pub fn get_bids(&self, key: &ScNftID) -> MutableBids {
+        MutableBids { proxy: self.proxy.key(&nft_id_to_bytes(key)) }
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableFairAuctionState {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableFairAuctionState {
-    pub fn auctions(&self) -> MapColorToMutableAuction {
-		let map_id = get_object_id(self.id, idx_map(IDX_STATE_AUCTIONS), TYPE_MAP);
-		MapColorToMutableAuction { obj_id: map_id }
+    pub fn as_immutable(&self) -> ImmutableFairAuctionState {
+		ImmutableFairAuctionState { proxy: self.proxy.root("") }
 	}
 
-    pub fn bidder_list(&self) -> MapColorToMutableBidderList {
-		let map_id = get_object_id(self.id, idx_map(IDX_STATE_BIDDER_LIST), TYPE_MAP);
-		MapColorToMutableBidderList { obj_id: map_id }
+    pub fn auctions(&self) -> MapNftIDToMutableAuction {
+		MapNftIDToMutableAuction { proxy: self.proxy.root(STATE_AUCTIONS) }
 	}
 
-    pub fn bids(&self) -> MapColorToMutableBids {
-		let map_id = get_object_id(self.id, idx_map(IDX_STATE_BIDS), TYPE_MAP);
-		MapColorToMutableBids { obj_id: map_id }
+    pub fn bidder_list(&self) -> MapNftIDToMutableBidderList {
+		MapNftIDToMutableBidderList { proxy: self.proxy.root(STATE_BIDDER_LIST) }
 	}
 
-    pub fn owner_margin(&self) -> ScMutableInt64 {
-		ScMutableInt64::new(self.id, idx_map(IDX_STATE_OWNER_MARGIN))
+    pub fn bids(&self) -> MapNftIDToMutableBids {
+		MapNftIDToMutableBids { proxy: self.proxy.root(STATE_BIDS) }
+	}
+
+    // default auction owner's margin in promilles
+    pub fn owner_margin(&self) -> ScMutableUint64 {
+		ScMutableUint64::new(self.proxy.root(STATE_OWNER_MARGIN))
 	}
 }

@@ -10,42 +10,59 @@
 
 use erc20::*;
 use wasmlib::*;
-use wasmlib::host::*;
 
 use crate::consts::*;
-use crate::keys::*;
+use crate::events::*;
 use crate::params::*;
 use crate::results::*;
 use crate::state::*;
+use crate::typedefs::*;
 
 mod consts;
 mod contract;
-mod keys;
+mod events;
 mod params;
 mod results;
 mod state;
 mod typedefs;
+
 mod erc20;
+
+const EXPORT_MAP: ScExportMap = ScExportMap {
+    names: &[
+    	FUNC_APPROVE,
+    	FUNC_INIT,
+    	FUNC_TRANSFER,
+    	FUNC_TRANSFER_FROM,
+    	VIEW_ALLOWANCE,
+    	VIEW_BALANCE_OF,
+    	VIEW_TOTAL_SUPPLY,
+	],
+    funcs: &[
+    	func_approve_thunk,
+    	func_init_thunk,
+    	func_transfer_thunk,
+    	func_transfer_from_thunk,
+	],
+    views: &[
+    	view_allowance_thunk,
+    	view_balance_of_thunk,
+    	view_total_supply_thunk,
+	],
+};
+
+#[no_mangle]
+fn on_call(index: i32) {
+	ScExports::call(index, &EXPORT_MAP);
+}
 
 #[no_mangle]
 fn on_load() {
-    let exports = ScExports::new();
-    exports.add_func(FUNC_APPROVE,       func_approve_thunk);
-    exports.add_func(FUNC_INIT,          func_init_thunk);
-    exports.add_func(FUNC_TRANSFER,      func_transfer_thunk);
-    exports.add_func(FUNC_TRANSFER_FROM, func_transfer_from_thunk);
-    exports.add_view(VIEW_ALLOWANCE,     view_allowance_thunk);
-    exports.add_view(VIEW_BALANCE_OF,    view_balance_of_thunk);
-    exports.add_view(VIEW_TOTAL_SUPPLY,  view_total_supply_thunk);
-
-    unsafe {
-        for i in 0..KEY_MAP_LEN {
-            IDX_MAP[i] = get_key_id_from_string(KEY_MAP[i]);
-        }
-    }
+    ScExports::export(&EXPORT_MAP);
 }
 
 pub struct ApproveContext {
+	events:  Erc20Events,
 	params: ImmutableApproveParams,
 	state: MutableErc20State,
 }
@@ -53,12 +70,9 @@ pub struct ApproveContext {
 fn func_approve_thunk(ctx: &ScFuncContext) {
 	ctx.log("erc20.funcApprove");
 	let f = ApproveContext {
-		params: ImmutableApproveParams {
-			id: OBJ_ID_PARAMS,
-		},
-		state: MutableErc20State {
-			id: OBJ_ID_STATE,
-		},
+		events:  Erc20Events {},
+		params: ImmutableApproveParams { proxy: params_proxy() },
+		state: MutableErc20State { proxy: state_proxy() },
 	};
 	ctx.require(f.params.amount().exists(), "missing mandatory amount");
 	ctx.require(f.params.delegation().exists(), "missing mandatory delegation");
@@ -67,6 +81,7 @@ fn func_approve_thunk(ctx: &ScFuncContext) {
 }
 
 pub struct InitContext {
+	events:  Erc20Events,
 	params: ImmutableInitParams,
 	state: MutableErc20State,
 }
@@ -74,12 +89,9 @@ pub struct InitContext {
 fn func_init_thunk(ctx: &ScFuncContext) {
 	ctx.log("erc20.funcInit");
 	let f = InitContext {
-		params: ImmutableInitParams {
-			id: OBJ_ID_PARAMS,
-		},
-		state: MutableErc20State {
-			id: OBJ_ID_STATE,
-		},
+		events:  Erc20Events {},
+		params: ImmutableInitParams { proxy: params_proxy() },
+		state: MutableErc20State { proxy: state_proxy() },
 	};
 	ctx.require(f.params.creator().exists(), "missing mandatory creator");
 	ctx.require(f.params.supply().exists(), "missing mandatory supply");
@@ -88,6 +100,7 @@ fn func_init_thunk(ctx: &ScFuncContext) {
 }
 
 pub struct TransferContext {
+	events:  Erc20Events,
 	params: ImmutableTransferParams,
 	state: MutableErc20State,
 }
@@ -95,12 +108,9 @@ pub struct TransferContext {
 fn func_transfer_thunk(ctx: &ScFuncContext) {
 	ctx.log("erc20.funcTransfer");
 	let f = TransferContext {
-		params: ImmutableTransferParams {
-			id: OBJ_ID_PARAMS,
-		},
-		state: MutableErc20State {
-			id: OBJ_ID_STATE,
-		},
+		events:  Erc20Events {},
+		params: ImmutableTransferParams { proxy: params_proxy() },
+		state: MutableErc20State { proxy: state_proxy() },
 	};
 	ctx.require(f.params.account().exists(), "missing mandatory account");
 	ctx.require(f.params.amount().exists(), "missing mandatory amount");
@@ -109,6 +119,7 @@ fn func_transfer_thunk(ctx: &ScFuncContext) {
 }
 
 pub struct TransferFromContext {
+	events:  Erc20Events,
 	params: ImmutableTransferFromParams,
 	state: MutableErc20State,
 }
@@ -116,12 +127,9 @@ pub struct TransferFromContext {
 fn func_transfer_from_thunk(ctx: &ScFuncContext) {
 	ctx.log("erc20.funcTransferFrom");
 	let f = TransferFromContext {
-		params: ImmutableTransferFromParams {
-			id: OBJ_ID_PARAMS,
-		},
-		state: MutableErc20State {
-			id: OBJ_ID_STATE,
-		},
+		events:  Erc20Events {},
+		params: ImmutableTransferFromParams { proxy: params_proxy() },
+		state: MutableErc20State { proxy: state_proxy() },
 	};
 	ctx.require(f.params.account().exists(), "missing mandatory account");
 	ctx.require(f.params.amount().exists(), "missing mandatory amount");
@@ -139,19 +147,14 @@ pub struct AllowanceContext {
 fn view_allowance_thunk(ctx: &ScViewContext) {
 	ctx.log("erc20.viewAllowance");
 	let f = AllowanceContext {
-		params: ImmutableAllowanceParams {
-			id: OBJ_ID_PARAMS,
-		},
-		results: MutableAllowanceResults {
-			id: OBJ_ID_RESULTS,
-		},
-		state: ImmutableErc20State {
-			id: OBJ_ID_STATE,
-		},
+		params: ImmutableAllowanceParams { proxy: params_proxy() },
+		results: MutableAllowanceResults { proxy: results_proxy() },
+		state: ImmutableErc20State { proxy: state_proxy() },
 	};
 	ctx.require(f.params.account().exists(), "missing mandatory account");
 	ctx.require(f.params.delegation().exists(), "missing mandatory delegation");
 	view_allowance(ctx, &f);
+	ctx.results(&f.results.proxy.kv_store);
 	ctx.log("erc20.viewAllowance ok");
 }
 
@@ -164,18 +167,13 @@ pub struct BalanceOfContext {
 fn view_balance_of_thunk(ctx: &ScViewContext) {
 	ctx.log("erc20.viewBalanceOf");
 	let f = BalanceOfContext {
-		params: ImmutableBalanceOfParams {
-			id: OBJ_ID_PARAMS,
-		},
-		results: MutableBalanceOfResults {
-			id: OBJ_ID_RESULTS,
-		},
-		state: ImmutableErc20State {
-			id: OBJ_ID_STATE,
-		},
+		params: ImmutableBalanceOfParams { proxy: params_proxy() },
+		results: MutableBalanceOfResults { proxy: results_proxy() },
+		state: ImmutableErc20State { proxy: state_proxy() },
 	};
 	ctx.require(f.params.account().exists(), "missing mandatory account");
 	view_balance_of(ctx, &f);
+	ctx.results(&f.results.proxy.kv_store);
 	ctx.log("erc20.viewBalanceOf ok");
 }
 
@@ -187,13 +185,10 @@ pub struct TotalSupplyContext {
 fn view_total_supply_thunk(ctx: &ScViewContext) {
 	ctx.log("erc20.viewTotalSupply");
 	let f = TotalSupplyContext {
-		results: MutableTotalSupplyResults {
-			id: OBJ_ID_RESULTS,
-		},
-		state: ImmutableErc20State {
-			id: OBJ_ID_STATE,
-		},
+		results: MutableTotalSupplyResults { proxy: results_proxy() },
+		state: ImmutableErc20State { proxy: state_proxy() },
 	};
 	view_total_supply(ctx, &f);
+	ctx.results(&f.results.proxy.kv_store);
 	ctx.log("erc20.viewTotalSupply ok");
 }

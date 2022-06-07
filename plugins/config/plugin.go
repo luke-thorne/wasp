@@ -1,3 +1,6 @@
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 package config
 
 import (
@@ -8,6 +11,7 @@ import (
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/hive.go/node"
 	flag "github.com/spf13/pflag"
+	"go.uber.org/dig"
 )
 
 // PluginName is the name of the config plugin.
@@ -22,9 +26,9 @@ const (
 )
 
 func Init(conf *configuration.Configuration) *node.Plugin {
-	plugin := node.NewPlugin(PluginName, node.Enabled)
+	plugin := node.NewPlugin(PluginName, nil, node.Enabled)
 
-	plugin.Events.Init.Attach(events.NewClosure(func(*node.Plugin) {
+	plugin.Events.Init.Attach(events.NewClosure(func(*node.Plugin, *dig.Container) {
 		if skipConfigAvailable, err := fetch(conf, false); err != nil {
 			if !skipConfigAvailable {
 				// we wanted a config file but it was not present

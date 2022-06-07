@@ -7,13 +7,8 @@
 
 #![allow(dead_code)]
 
-use std::ptr;
-
 use wasmlib::*;
-
-use crate::consts::*;
-use crate::params::*;
-use crate::results::*;
+use crate::*;
 
 pub struct FinalizeAuctionCall {
 	pub func: ScFunc,
@@ -35,59 +30,60 @@ pub struct StartAuctionCall {
 	pub params: MutableStartAuctionParams,
 }
 
-pub struct GetInfoCall {
+pub struct GetAuctionInfoCall {
 	pub func: ScView,
-	pub params: MutableGetInfoParams,
-	pub results: ImmutableGetInfoResults,
+	pub params: MutableGetAuctionInfoParams,
+	pub results: ImmutableGetAuctionInfoResults,
 }
 
 pub struct ScFuncs {
 }
 
 impl ScFuncs {
-    pub fn finalize_auction(_ctx: & dyn ScFuncCallContext) -> FinalizeAuctionCall {
+    pub fn finalize_auction(_ctx: &dyn ScFuncCallContext) -> FinalizeAuctionCall {
         let mut f = FinalizeAuctionCall {
             func: ScFunc::new(HSC_NAME, HFUNC_FINALIZE_AUCTION),
-            params: MutableFinalizeAuctionParams { id: 0 },
+            params: MutableFinalizeAuctionParams { proxy: Proxy::nil() },
         };
-        f.func.set_ptrs(&mut f.params.id, ptr::null_mut());
+        ScFunc::link_params(&mut f.params.proxy, &f.func);
         f
     }
 
-    pub fn place_bid(_ctx: & dyn ScFuncCallContext) -> PlaceBidCall {
+    pub fn place_bid(_ctx: &dyn ScFuncCallContext) -> PlaceBidCall {
         let mut f = PlaceBidCall {
             func: ScFunc::new(HSC_NAME, HFUNC_PLACE_BID),
-            params: MutablePlaceBidParams { id: 0 },
+            params: MutablePlaceBidParams { proxy: Proxy::nil() },
         };
-        f.func.set_ptrs(&mut f.params.id, ptr::null_mut());
+        ScFunc::link_params(&mut f.params.proxy, &f.func);
         f
     }
 
-    pub fn set_owner_margin(_ctx: & dyn ScFuncCallContext) -> SetOwnerMarginCall {
+    pub fn set_owner_margin(_ctx: &dyn ScFuncCallContext) -> SetOwnerMarginCall {
         let mut f = SetOwnerMarginCall {
             func: ScFunc::new(HSC_NAME, HFUNC_SET_OWNER_MARGIN),
-            params: MutableSetOwnerMarginParams { id: 0 },
+            params: MutableSetOwnerMarginParams { proxy: Proxy::nil() },
         };
-        f.func.set_ptrs(&mut f.params.id, ptr::null_mut());
+        ScFunc::link_params(&mut f.params.proxy, &f.func);
         f
     }
 
-    pub fn start_auction(_ctx: & dyn ScFuncCallContext) -> StartAuctionCall {
+    pub fn start_auction(_ctx: &dyn ScFuncCallContext) -> StartAuctionCall {
         let mut f = StartAuctionCall {
             func: ScFunc::new(HSC_NAME, HFUNC_START_AUCTION),
-            params: MutableStartAuctionParams { id: 0 },
+            params: MutableStartAuctionParams { proxy: Proxy::nil() },
         };
-        f.func.set_ptrs(&mut f.params.id, ptr::null_mut());
+        ScFunc::link_params(&mut f.params.proxy, &f.func);
         f
     }
 
-    pub fn get_info(_ctx: & dyn ScViewCallContext) -> GetInfoCall {
-        let mut f = GetInfoCall {
-            func: ScView::new(HSC_NAME, HVIEW_GET_INFO),
-            params: MutableGetInfoParams { id: 0 },
-            results: ImmutableGetInfoResults { id: 0 },
+    pub fn get_auction_info(_ctx: &dyn ScViewCallContext) -> GetAuctionInfoCall {
+        let mut f = GetAuctionInfoCall {
+            func: ScView::new(HSC_NAME, HVIEW_GET_AUCTION_INFO),
+            params: MutableGetAuctionInfoParams { proxy: Proxy::nil() },
+            results: ImmutableGetAuctionInfoResults { proxy: Proxy::nil() },
         };
-        f.func.set_ptrs(&mut f.params.id, &mut f.results.id);
+        ScView::link_params(&mut f.params.proxy, &f.func);
+        ScView::link_results(&mut f.results.proxy, &f.func);
         f
     }
 }

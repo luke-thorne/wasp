@@ -1,3 +1,6 @@
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 package rstemplates
 
 var libRs = map[string]string{
@@ -8,64 +11,129 @@ var libRs = map[string]string{
 
 use $package::*;
 use wasmlib::*;
-use wasmlib::host::*;
 
 use crate::consts::*;
-use crate::keys::*;
-$#if params useParams
-$#if results useResults
-use crate::state::*;
+$#set moduleName events
+$#if events useModule
+$#set moduleName params
+$#if params useModule
+$#set moduleName results
+$#if results useModule
+$#set moduleName state
+$#if state useModule
+$#set moduleName structs
+$#if structs useModule
+$#set moduleName typedefs
+$#if typedefs useModule
 
 mod consts;
 mod contract;
-mod keys;
-$#if params modParams
-$#if results modResults
-mod state;
-$#if structs modStructs
-$#if typedefs modTypeDefs
+$#set moduleName events
+$#if events modModule
+$#set moduleName params
+$#if params modModule
+$#set moduleName results
+$#if results modModule
+$#set moduleName state
+$#if state modModule
+$#set moduleName structs
+$#if structs modModule
+$#set moduleName typedefs
+$#if typedefs modModule
+
 mod $package;
+
+const EXPORT_MAP: ScExportMap = ScExportMap {
+    names: &[
+$#each func libExportName
+	],
+    funcs: &[
+$#each func libExportFunc
+	],
+    views: &[
+$#each func libExportView
+	],
+};
+
+#[no_mangle]
+fn on_call(index: i32) {
+	ScExports::call(index, &EXPORT_MAP);
+}
 
 #[no_mangle]
 fn on_load() {
-    let exports = ScExports::new();
-$#each func libExportFunc
-
-    unsafe {
-        for i in 0..KEY_MAP_LEN {
-            IDX_MAP[i] = get_key_id_from_string(KEY_MAP[i]);
-        }
-    }
+    ScExports::export(&EXPORT_MAP);
 }
 $#each func libThunk
 `,
 	// *******************************
+	"useModule": `
+use crate::$moduleName::*;
+`,
+	// *******************************
+	"modModule": `
+mod $moduleName;
+`,
+	// *******************************
+	"libExportName": `
+    	$KIND$+_$FUNC_NAME,
+`,
+	// *******************************
 	"libExportFunc": `
-    exports.add_$kind($KIND$+_$FUNC_NAME,$func_pad $kind$+_$func_name$+_thunk);
+$#if func libExportFuncThunk
+`,
+	// *******************************
+	"libExportFuncThunk": `
+    	$kind$+_$func_name$+_thunk,
+`,
+	// *******************************
+	"libExportView": `
+$#if view libExportViewThunk
+`,
+	// *******************************
+	"libExportViewThunk": `
+    	$kind$+_$func_name$+_thunk,
 `,
 	// *******************************
 	"libThunk": `
 
 pub struct $FuncName$+Context {
+$#if func PackageEvents
 $#if param ImmutableFuncNameParams
 $#if result MutableFuncNameResults
-$#if func MutablePackageState
-$#if view ImmutablePackageState
+$#if state PackageState
 }
 
 fn $kind$+_$func_name$+_thunk(ctx: &Sc$Kind$+Context) {
 	ctx.log("$package.$kind$FuncName");
-$#emit accessCheck
 	let f = $FuncName$+Context {
+$#if func PackageEventsInit
 $#if param ImmutableFuncNameParamsInit
 $#if result MutableFuncNameResultsInit
-$#if func MutablePackageStateInit
-$#if view ImmutablePackageStateInit
+$#if state PackageStateInit
 	};
+$#emit accessCheck
 $#each mandatory requireMandatory
 	$kind$+_$func_name(ctx, &f);
+$#if result returnResultDict
 	ctx.log("$package.$kind$FuncName ok");
 }
+`,
+	// *******************************
+	"PackageEvents": `
+$#if events PackageEventsExist
+`,
+	// *******************************
+	"PackageEventsExist": `
+	events:  $Package$+Events,
+`,
+	// *******************************
+	"PackageEventsInit": `
+$#if events PackageEventsInitExist
+`,
+	// *******************************
+	"PackageEventsInitExist": `
+		events:  $Package$+Events {},
 `,
 	// *******************************
 	"ImmutableFuncNameParams": `
@@ -73,9 +141,7 @@ $#each mandatory requireMandatory
 `,
 	// *******************************
 	"ImmutableFuncNameParamsInit": `
-		params: Immutable$FuncName$+Params {
-			id: OBJ_ID_PARAMS,
-		},
+		params: Immutable$FuncName$+Params { proxy: params_proxy() },
 `,
 	// *******************************
 	"MutableFuncNameResults": `
@@ -83,35 +149,42 @@ $#each mandatory requireMandatory
 `,
 	// *******************************
 	"MutableFuncNameResultsInit": `
-		results: Mutable$FuncName$+Results {
-			id: OBJ_ID_RESULTS,
-		},
+		results: Mutable$FuncName$+Results { proxy: results_proxy() },
+`,
+	// *******************************
+	"PackageState": `
+$#if func MutablePackageState
+$#if view ImmutablePackageState
 `,
 	// *******************************
 	"MutablePackageState": `
 	state: Mutable$Package$+State,
 `,
 	// *******************************
-	"MutablePackageStateInit": `
-		state: Mutable$Package$+State {
-			id: OBJ_ID_STATE,
-		},
-`,
-	// *******************************
 	"ImmutablePackageState": `
 	state: Immutable$Package$+State,
 `,
 	// *******************************
+	"PackageStateInit": `
+$#if func MutablePackageStateInit
+$#if view ImmutablePackageStateInit
+`,
+	// *******************************
+	"MutablePackageStateInit": `
+		state: Mutable$Package$+State { proxy: state_proxy() },
+`,
+	// *******************************
 	"ImmutablePackageStateInit": `
-		state: Immutable$Package$+State {
-			id: OBJ_ID_STATE,
-		},
+		state: Immutable$Package$+State { proxy: state_proxy() },
+`,
+	// *******************************
+	"returnResultDict": `
+	ctx.results(&f.results.proxy.kv_store);
 `,
 	// *******************************
 	"requireMandatory": `
 	ctx.require(f.params.$fld_name().exists(), "missing mandatory $fldName");
 `,
-
 	// *******************************
 	"accessCheck": `
 $#set accessFinalize accessOther
@@ -124,39 +197,38 @@ $#set accessFinalize accessDone
 `,
 	// *******************************
 	"caseAccessself": `
-$#if funcAccessComment accessComment
+
+$#each funcAccessComment _funcAccessComment
 	ctx.require(ctx.caller() == ctx.account_id(), "no permission");
 
 $#set accessFinalize accessDone
 `,
 	// *******************************
 	"caseAccesschain": `
-$#if funcAccessComment accessComment
+
+$#each funcAccessComment _funcAccessComment
 	ctx.require(ctx.caller() == ctx.chain_owner_id(), "no permission");
 
 $#set accessFinalize accessDone
 `,
 	// *******************************
 	"caseAccesscreator": `
-$#if funcAccessComment accessComment
+
+$#each funcAccessComment _funcAccessComment
 	ctx.require(ctx.caller() == ctx.contract_creator(), "no permission");
 
 $#set accessFinalize accessDone
 `,
 	// *******************************
 	"accessOther": `
-$#if funcAccessComment accessComment
-	let access = ctx.state().get_agent_id("$funcAccess");
+
+$#each funcAccessComment _funcAccessComment
+	let access = f.state.$func_access();
 	ctx.require(access.exists(), "access not set: $funcAccess");
 	ctx.require(ctx.caller() == access.value(), "no permission");
 
 `,
 	// *******************************
 	"accessDone": `
-`,
-	// *******************************
-	"accessComment": `
-
-	$funcAccessComment
 `,
 }

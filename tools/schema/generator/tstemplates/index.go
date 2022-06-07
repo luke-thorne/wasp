@@ -1,3 +1,6 @@
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 package tstemplates
 
 var indexTs = map[string]string{
@@ -6,11 +9,13 @@ var indexTs = map[string]string{
 $#if core else exportName
 export * from "./consts";
 export * from "./contract";
-$#if core else exportKeys
+$#if events exportEvents
 $#if core else exportLib
 $#if params exportParams
 $#if results exportResults
-$#if core else exportRest
+$#if state exportState
+$#if structs exportStructs
+$#if typedefs exportTypedefs
 `,
 	// *******************************
 	"exportName": `
@@ -18,8 +23,8 @@ export * from "./$package";
 
 `,
 	// *******************************
-	"exportKeys": `
-export * from "./keys";
+	"exportEvents": `
+export * from "./events";
 `,
 	// *******************************
 	"exportLib": `
@@ -34,10 +39,8 @@ export * from "./params";
 export * from "./results";
 `,
 	// *******************************
-	"exportRest": `
+	"exportState": `
 export * from "./state";
-$#if structs exportStructs
-$#if typedefs exportTypedefs
 `,
 	// *******************************
 	"exportStructs": `

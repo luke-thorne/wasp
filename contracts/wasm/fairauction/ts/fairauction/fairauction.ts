@@ -2,116 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as wasmlib from "wasmlib"
+import * as wasmtypes from "wasmlib/wasmtypes";
 import * as sc from "./index";
 
-const DURATION_DEFAULT: i32 = 60;
-const DURATION_MIN: i32 = 1;
-const DURATION_MAX: i32 = 120;
+const DURATION_DEFAULT: u32 = 60;
+const DURATION_MIN: u32 = 1;
+const DURATION_MAX: u32 = 120;
 const MAX_DESCRIPTION_LENGTH: i32 = 150;
-const OWNER_MARGIN_DEFAULT: i64 = 50;
-const OWNER_MARGIN_MIN: i64 = 5;
-const OWNER_MARGIN_MAX: i64 = 100;
-
-export function funcFinalizeAuction(ctx: wasmlib.ScFuncContext, f: sc.FinalizeAuctionContext): void {
-    let color = f.params.color().value();
-    let currentAuction = f.state.auctions().getAuction(color);
-    ctx.require(currentAuction.exists(), "Missing auction info");
-    let auction = currentAuction.value();
-    if (auction.highestBid < 0) {
-        ctx.log("No one bid on " + color.toString());
-        let ownerFee = auction.minimumBid * auction.ownerMargin / 1000;
-        if (ownerFee == 0) {
-            ownerFee = 1;
-        }
-        // finalizeAuction request token was probably not confirmed yet
-        transferTokens(ctx, ctx.contractCreator(), wasmlib.ScColor.IOTA, ownerFee - 1);
-        transferTokens(ctx, auction.creator, auction.color, auction.numTokens);
-        transferTokens(ctx, auction.creator, wasmlib.ScColor.IOTA, auction.deposit - ownerFee);
-        return;
-    }
-
-    let ownerFee = auction.highestBid * auction.ownerMargin / 1000;
-    if (ownerFee == 0) {
-        ownerFee = 1;
-    }
-
-    // return staked bids to losers
-    let bids = f.state.bids().getBids(color);
-    let bidderList = f.state.bidderList().getBidderList(color);
-    let size = bidderList.length();
-    for (let i = 0; i < size; i++) {
-        let loser = bidderList.getAgentID(i).value();
-        if (loser != auction.highestBidder) {
-            let bid = bids.getBid(loser).value();
-            transferTokens(ctx, loser, wasmlib.ScColor.IOTA, bid.amount);
-        }
-    }
-
-    // finalizeAuction request token was probably not confirmed yet
-    transferTokens(ctx, ctx.contractCreator(), wasmlib.ScColor.IOTA, ownerFee - 1);
-    transferTokens(ctx, auction.highestBidder, auction.color, auction.numTokens);
-    transferTokens(ctx, auction.creator, wasmlib.ScColor.IOTA, auction.deposit + auction.highestBid - ownerFee);
-}
-
-export function funcPlaceBid(ctx: wasmlib.ScFuncContext, f: sc.PlaceBidContext): void {
-    let bidAmount = ctx.incoming().balance(wasmlib.ScColor.IOTA);
-    ctx.require(bidAmount > 0, "Missing bid amount");
-
-    let color = f.params.color().value();
-    let currentAuction = f.state.auctions().getAuction(color);
-    ctx.require(currentAuction.exists(), "Missing auction info");
-
-    let auction = currentAuction.value();
-    let bids = f.state.bids().getBids(color);
-    let bidderList = f.state.bidderList().getBidderList(color);
-    let caller = ctx.caller();
-    let currentBid = bids.getBid(caller);
-    if (currentBid.exists()) {
-        ctx.log("Upped bid from: " + caller.toString());
-        let bid = currentBid.value();
-        bidAmount += bid.amount;
-        bid.amount = bidAmount;
-        bid.timestamp = ctx.timestamp();
-        currentBid.setValue(bid);
-    } else {
-        ctx.require(bidAmount >= auction.minimumBid, "Insufficient bid amount");
-        ctx.log("New bid from: " + caller.toString());
-        let index = bidderList.length();
-        bidderList.getAgentID(index).setValue(caller);
-        let bid = new sc.Bid();
-        bid.index = index;
-        bid.amount = bidAmount;
-        bid.timestamp = ctx.timestamp();
-        currentBid.setValue(bid);
-    }
-    if (bidAmount > auction.highestBid) {
-        ctx.log("New highest bidder");
-        auction.highestBid = bidAmount;
-        auction.highestBidder = caller;
-        currentAuction.setValue(auction);
-    }
-}
-
-export function funcSetOwnerMargin(ctx: wasmlib.ScFuncContext, f: sc.SetOwnerMarginContext): void {
-    let ownerMargin = f.params.ownerMargin().value();
-    if (ownerMargin < OWNER_MARGIN_MIN) {
-        ownerMargin = OWNER_MARGIN_MIN;
-    }
-    if (ownerMargin > OWNER_MARGIN_MAX) {
-        ownerMargin = OWNER_MARGIN_MAX;
-    }
-    f.state.ownerMargin().setValue(ownerMargin);
-}
+const OWNER_MARGIN_DEFAULT: u64 = 50;
+const OWNER_MARGIN_MIN: u64 = 5;
+const OWNER_MARGIN_MAX: u64 = 100;
 
 export function funcStartAuction(ctx: wasmlib.ScFuncContext, f: sc.StartAuctionContext): void {
-    let color = f.params.color().value();
-    if (color == wasmlib.ScColor.IOTA || color == wasmlib.ScColor.MINT) {
-        ctx.panic("Reserved auction token color");
-    }
-    let numTokens = ctx.incoming().balance(color);
-    if (numTokens == 0) {
-        ctx.panic("Missing auction tokens");
-    }
+    let allowance = ctx.allowance();
+    let nfts = allowance.nftIDs();
+    ctx.require(nfts.length == 1, "single NFT allowance expected")
+    let auctionNFT = nfts[0]
 
     let minimumBid = f.params.minimumBid().value();
 
@@ -140,47 +46,142 @@ export function funcStartAuction(ctx: wasmlib.ScFuncContext, f: sc.StartAuctionC
         ownerMargin = OWNER_MARGIN_DEFAULT;
     }
 
-    // need at least 1 iota to run SC
+    //TODO need at least 1 iota to run SC
     let margin = minimumBid * ownerMargin / 1000;
     if (margin == 0) {
         margin = 1;
     }
-    let deposit = ctx.incoming().balance(wasmlib.ScColor.IOTA);
+    let deposit = allowance.iotas();
     if (deposit < margin) {
         ctx.panic("Insufficient deposit");
     }
 
-    let currentAuction = f.state.auctions().getAuction(color);
+    let currentAuction = f.state.auctions().getAuction(auctionNFT);
     if (currentAuction.exists()) {
-        ctx.panic("Auction for this token color already exists");
+        ctx.panic("Auction for this nft already exists");
     }
 
     let auction = new sc.Auction();
     auction.creator = ctx.caller();
-    auction.color = color;
     auction.deposit = deposit;
     auction.description = description;
     auction.duration = duration;
-    auction.highestBid = -1;
-    auction.highestBidder = new wasmlib.ScAgentID();
+    auction.highestBid = 0;
+    auction.highestBidder = ctx.caller();
     auction.minimumBid = minimumBid;
-    auction.numTokens = numTokens;
     auction.ownerMargin = ownerMargin;
+    auction.nft = auctionNFT;
     auction.whenStarted = ctx.timestamp();
     currentAuction.setValue(auction);
 
+    // take custody of deposit and NFT
+    let transfer = wasmlib.ScTransfer.iotas(deposit);
+    transfer.addNFT(auctionNFT)
+    ctx.transferAllowed(ctx.accountID(), transfer, false)
+
     let fa = sc.ScFuncs.finalizeAuction(ctx);
-    fa.params.color().setValue(auction.color);
-    fa.func.delay(duration * 60).transferIotas(1).post();
+    fa.params.nft().setValue(auction.nft);
+    fa.func.delay(duration * 60).post();
 }
 
-export function viewGetInfo(ctx: wasmlib.ScViewContext, f: sc.GetInfoContext): void {
-    let color = f.params.color().value();
-    let currentAuction = f.state.auctions().getAuction(color);
+export function funcFinalizeAuction(ctx: wasmlib.ScFuncContext, f: sc.FinalizeAuctionContext): void {
+    let nft = f.params.nft().value();
+    let currentAuction = f.state.auctions().getAuction(nft);
+    ctx.require(currentAuction.exists(), "Missing auction info");
+    let auction = currentAuction.value();
+    if (auction.highestBid == 0) {
+        ctx.log("No one bid on " + nft.toString());
+        let ownerFee = auction.minimumBid * auction.ownerMargin / 1000;
+        if (ownerFee == 0) {
+            ownerFee = 1;
+        }
+        // finalizeAuction request nft was probably not confirmed yet
+        transferIotas(ctx, ctx.contractCreator(), ownerFee - 1);
+        transferNFT(ctx, auction.creator, auction.nft);
+        transferIotas(ctx, auction.creator, auction.deposit - ownerFee);
+        return;
+    }
+
+    let ownerFee = auction.highestBid * auction.ownerMargin / 1000;
+    if (ownerFee == 0) {
+        ownerFee = 1;
+    }
+
+    // return staked bids to losers
+    let bids = f.state.bids().getBids(nft);
+    let bidderList = f.state.bidderList().getBidderList(nft);
+    let size = bidderList.length();
+    for (let i: u32 = 0; i < size; i++) {
+        let loser = bidderList.getAgentID(i).value();
+        if (!loser.equals(auction.highestBidder)) {
+            let bid = bids.getBid(loser).value();
+            transferIotas(ctx, loser, bid.amount);
+        }
+    }
+
+    // finalizeAuction request nft was probably not confirmed yet
+    transferIotas(ctx, ctx.contractCreator(), ownerFee - 1);
+    transferNFT(ctx, auction.highestBidder, auction.nft);
+    transferIotas(ctx, auction.creator, auction.deposit + auction.highestBid - ownerFee);
+}
+
+export function funcPlaceBid(ctx: wasmlib.ScFuncContext, f: sc.PlaceBidContext): void {
+    let bidAmount = ctx.allowance().iotas();
+    ctx.require(bidAmount > 0, "Missing bid amount");
+
+    let nft = f.params.nft().value();
+    let currentAuction = f.state.auctions().getAuction(nft);
     ctx.require(currentAuction.exists(), "Missing auction info");
 
     let auction = currentAuction.value();
-    f.results.color().setValue(auction.color);
+    let bids = f.state.bids().getBids(nft);
+    let bidderList = f.state.bidderList().getBidderList(nft);
+    let caller = ctx.caller();
+    let currentBid = bids.getBid(caller);
+    if (currentBid.exists()) {
+        ctx.log("Upped bid from: " + caller.toString());
+        let bid = currentBid.value();
+        bidAmount += bid.amount;
+        bid.amount = bidAmount;
+        bid.timestamp = ctx.timestamp();
+        currentBid.setValue(bid);
+    } else {
+        ctx.require(bidAmount >= auction.minimumBid, "Insufficient bid amount");
+        ctx.log("New bid from: " + caller.toString());
+        let index = bidderList.length();
+        bidderList.appendAgentID().setValue(caller);
+        let bid = new sc.Bid();
+        bid.index = index;
+        bid.amount = bidAmount;
+        bid.timestamp = ctx.timestamp();
+        currentBid.setValue(bid);
+    }
+    if (bidAmount > auction.highestBid) {
+        ctx.log("New highest bidder");
+        auction.highestBid = bidAmount;
+        auction.highestBidder = caller;
+        currentAuction.setValue(auction);
+    }
+}
+
+export function funcSetOwnerMargin(ctx: wasmlib.ScFuncContext, f: sc.SetOwnerMarginContext): void {
+    let ownerMargin = f.params.ownerMargin().value();
+    if (ownerMargin < OWNER_MARGIN_MIN) {
+        ownerMargin = OWNER_MARGIN_MIN;
+    }
+    if (ownerMargin > OWNER_MARGIN_MAX) {
+        ownerMargin = OWNER_MARGIN_MAX;
+    }
+    f.state.ownerMargin().setValue(ownerMargin);
+}
+
+export function viewGetAuctionInfo(ctx: wasmlib.ScViewContext, f: sc.GetAuctionInfoContext): void {
+    let nft = f.params.nft().value();
+    let currentAuction = f.state.auctions().getAuction(nft);
+    ctx.require(currentAuction.exists(), "Missing auction info");
+
+    let auction = currentAuction.value();
+    f.results.nft().setValue(auction.nft);
     f.results.creator().setValue(auction.creator);
     f.results.deposit().setValue(auction.deposit);
     f.results.description().setValue(auction.description);
@@ -188,21 +189,31 @@ export function viewGetInfo(ctx: wasmlib.ScViewContext, f: sc.GetInfoContext): v
     f.results.highestBid().setValue(auction.highestBid);
     f.results.highestBidder().setValue(auction.highestBidder);
     f.results.minimumBid().setValue(auction.minimumBid);
-    f.results.numTokens().setValue(auction.numTokens);
     f.results.ownerMargin().setValue(auction.ownerMargin);
     f.results.whenStarted().setValue(auction.whenStarted);
 
-    let bidderList = f.state.bidderList().getBidderList(color);
+    let bidderList = f.state.bidderList().getBidderList(nft);
     f.results.bidders().setValue(bidderList.length());
 }
 
-function transferTokens(ctx: wasmlib.ScFuncContext, agent: wasmlib.ScAgentID, color: wasmlib.ScColor, amount: i64): void {
+function transferIotas(ctx: wasmlib.ScFuncContext, agent: wasmlib.ScAgentID, amount: u64): void {
     if (agent.isAddress()) {
         // send back to original Tangle address
-        ctx.transferToAddress(agent.address(), wasmlib.ScTransfers.transfer(color, amount));
+        ctx.send(agent.address(), wasmlib.ScTransfer.iotas(amount));
         return;
     }
 
     // TODO not an address, deposit into account on chain
-    ctx.transferToAddress(agent.address(), wasmlib.ScTransfers.transfer(color, amount));
+    ctx.send(agent.address(), wasmlib.ScTransfer.iotas(amount));
+}
+
+function transferNFT(ctx: wasmlib.ScFuncContext, agent: wasmlib.ScAgentID, nft: wasmlib.ScNftID): void {
+    if (agent.isAddress()) {
+        // send back to original Tangle address
+        ctx.send(agent.address(), wasmlib.ScTransfer.nft(nft));
+        return;
+    }
+
+    // TODO not an address, deposit into account on chain
+    ctx.send(agent.address(), wasmlib.ScTransfer.nft(nft));
 }

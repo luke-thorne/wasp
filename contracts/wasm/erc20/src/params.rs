@@ -9,187 +9,208 @@
 #![allow(unused_imports)]
 
 use wasmlib::*;
-use wasmlib::host::*;
-
 use crate::*;
-use crate::keys::*;
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableApproveParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableApproveParams {
-    pub fn amount(&self) -> ScImmutableInt64 {
-		ScImmutableInt64::new(self.id, idx_map(IDX_PARAM_AMOUNT))
+    // allowance value for delegated account
+    pub fn amount(&self) -> ScImmutableUint64 {
+		ScImmutableUint64::new(self.proxy.root(PARAM_AMOUNT))
 	}
 
+    // delegated account
     pub fn delegation(&self) -> ScImmutableAgentID {
-		ScImmutableAgentID::new(self.id, idx_map(IDX_PARAM_DELEGATION))
+		ScImmutableAgentID::new(self.proxy.root(PARAM_DELEGATION))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableApproveParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableApproveParams {
-    pub fn amount(&self) -> ScMutableInt64 {
-		ScMutableInt64::new(self.id, idx_map(IDX_PARAM_AMOUNT))
+    // allowance value for delegated account
+    pub fn amount(&self) -> ScMutableUint64 {
+		ScMutableUint64::new(self.proxy.root(PARAM_AMOUNT))
 	}
 
+    // delegated account
     pub fn delegation(&self) -> ScMutableAgentID {
-		ScMutableAgentID::new(self.id, idx_map(IDX_PARAM_DELEGATION))
+		ScMutableAgentID::new(self.proxy.root(PARAM_DELEGATION))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableInitParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableInitParams {
+    // creator/owner of the initial supply
     pub fn creator(&self) -> ScImmutableAgentID {
-		ScImmutableAgentID::new(self.id, idx_map(IDX_PARAM_CREATOR))
+		ScImmutableAgentID::new(self.proxy.root(PARAM_CREATOR))
 	}
 
-    pub fn supply(&self) -> ScImmutableInt64 {
-		ScImmutableInt64::new(self.id, idx_map(IDX_PARAM_SUPPLY))
+    // initial token supply
+    pub fn supply(&self) -> ScImmutableUint64 {
+		ScImmutableUint64::new(self.proxy.root(PARAM_SUPPLY))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableInitParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableInitParams {
+    // creator/owner of the initial supply
     pub fn creator(&self) -> ScMutableAgentID {
-		ScMutableAgentID::new(self.id, idx_map(IDX_PARAM_CREATOR))
+		ScMutableAgentID::new(self.proxy.root(PARAM_CREATOR))
 	}
 
-    pub fn supply(&self) -> ScMutableInt64 {
-		ScMutableInt64::new(self.id, idx_map(IDX_PARAM_SUPPLY))
+    // initial token supply
+    pub fn supply(&self) -> ScMutableUint64 {
+		ScMutableUint64::new(self.proxy.root(PARAM_SUPPLY))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableTransferParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableTransferParams {
+    // target account
     pub fn account(&self) -> ScImmutableAgentID {
-		ScImmutableAgentID::new(self.id, idx_map(IDX_PARAM_ACCOUNT))
+		ScImmutableAgentID::new(self.proxy.root(PARAM_ACCOUNT))
 	}
 
-    pub fn amount(&self) -> ScImmutableInt64 {
-		ScImmutableInt64::new(self.id, idx_map(IDX_PARAM_AMOUNT))
+    // amount of tokens to transfer
+    pub fn amount(&self) -> ScImmutableUint64 {
+		ScImmutableUint64::new(self.proxy.root(PARAM_AMOUNT))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableTransferParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableTransferParams {
+    // target account
     pub fn account(&self) -> ScMutableAgentID {
-		ScMutableAgentID::new(self.id, idx_map(IDX_PARAM_ACCOUNT))
+		ScMutableAgentID::new(self.proxy.root(PARAM_ACCOUNT))
 	}
 
-    pub fn amount(&self) -> ScMutableInt64 {
-		ScMutableInt64::new(self.id, idx_map(IDX_PARAM_AMOUNT))
+    // amount of tokens to transfer
+    pub fn amount(&self) -> ScMutableUint64 {
+		ScMutableUint64::new(self.proxy.root(PARAM_AMOUNT))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableTransferFromParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableTransferFromParams {
+    // sender account
     pub fn account(&self) -> ScImmutableAgentID {
-		ScImmutableAgentID::new(self.id, idx_map(IDX_PARAM_ACCOUNT))
+		ScImmutableAgentID::new(self.proxy.root(PARAM_ACCOUNT))
 	}
 
-    pub fn amount(&self) -> ScImmutableInt64 {
-		ScImmutableInt64::new(self.id, idx_map(IDX_PARAM_AMOUNT))
+    // amount of tokens to transfer
+    pub fn amount(&self) -> ScImmutableUint64 {
+		ScImmutableUint64::new(self.proxy.root(PARAM_AMOUNT))
 	}
 
+    // recipient account
     pub fn recipient(&self) -> ScImmutableAgentID {
-		ScImmutableAgentID::new(self.id, idx_map(IDX_PARAM_RECIPIENT))
+		ScImmutableAgentID::new(self.proxy.root(PARAM_RECIPIENT))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableTransferFromParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableTransferFromParams {
+    // sender account
     pub fn account(&self) -> ScMutableAgentID {
-		ScMutableAgentID::new(self.id, idx_map(IDX_PARAM_ACCOUNT))
+		ScMutableAgentID::new(self.proxy.root(PARAM_ACCOUNT))
 	}
 
-    pub fn amount(&self) -> ScMutableInt64 {
-		ScMutableInt64::new(self.id, idx_map(IDX_PARAM_AMOUNT))
+    // amount of tokens to transfer
+    pub fn amount(&self) -> ScMutableUint64 {
+		ScMutableUint64::new(self.proxy.root(PARAM_AMOUNT))
 	}
 
+    // recipient account
     pub fn recipient(&self) -> ScMutableAgentID {
-		ScMutableAgentID::new(self.id, idx_map(IDX_PARAM_RECIPIENT))
+		ScMutableAgentID::new(self.proxy.root(PARAM_RECIPIENT))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableAllowanceParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableAllowanceParams {
+    // sender account
     pub fn account(&self) -> ScImmutableAgentID {
-		ScImmutableAgentID::new(self.id, idx_map(IDX_PARAM_ACCOUNT))
+		ScImmutableAgentID::new(self.proxy.root(PARAM_ACCOUNT))
 	}
 
+    // delegated account
     pub fn delegation(&self) -> ScImmutableAgentID {
-		ScImmutableAgentID::new(self.id, idx_map(IDX_PARAM_DELEGATION))
+		ScImmutableAgentID::new(self.proxy.root(PARAM_DELEGATION))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableAllowanceParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableAllowanceParams {
+    // sender account
     pub fn account(&self) -> ScMutableAgentID {
-		ScMutableAgentID::new(self.id, idx_map(IDX_PARAM_ACCOUNT))
+		ScMutableAgentID::new(self.proxy.root(PARAM_ACCOUNT))
 	}
 
+    // delegated account
     pub fn delegation(&self) -> ScMutableAgentID {
-		ScMutableAgentID::new(self.id, idx_map(IDX_PARAM_DELEGATION))
+		ScMutableAgentID::new(self.proxy.root(PARAM_DELEGATION))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImmutableBalanceOfParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl ImmutableBalanceOfParams {
+    // sender account
     pub fn account(&self) -> ScImmutableAgentID {
-		ScImmutableAgentID::new(self.id, idx_map(IDX_PARAM_ACCOUNT))
+		ScImmutableAgentID::new(self.proxy.root(PARAM_ACCOUNT))
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MutableBalanceOfParams {
-    pub(crate) id: i32,
+	pub(crate) proxy: Proxy,
 }
 
 impl MutableBalanceOfParams {
+    // sender account
     pub fn account(&self) -> ScMutableAgentID {
-		ScMutableAgentID::new(self.id, idx_map(IDX_PARAM_ACCOUNT))
+		ScMutableAgentID::new(self.proxy.root(PARAM_ACCOUNT))
 	}
 }

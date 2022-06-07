@@ -71,7 +71,8 @@ job "iscp-evm-server" {
 					"evm",
 					"jsonrpc",
 					"-d",
-					"--chainid=1074",
+					"--chainid",
+					"1074",
 					"-l=0.0.0.0:$${NOMAD_PORT_evm}",
 				]
 				ports = [

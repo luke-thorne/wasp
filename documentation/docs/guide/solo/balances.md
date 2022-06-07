@@ -12,12 +12,13 @@ keywords:
 ---
 # Account Balances
 
-:::note
+::: note
 
 The example code can be found in the [Wasp repository](https://github.com/iotaledger/wasp/tree/develop/documentation/tutorial-examples).
 
 :::
-Each chain in _ISCP_ is a separate ledger, different from the UTXO ledger.
+
+Each chain in the _IOTA Smart Contracts_ is a separate ledger, different from the UTXO ledger.
 Multiple chains add another dimension on top of the UTXO Ledger. Smart contracts
 can exchange assets between themselves on the same chain and also between different chains, as well as with
 addresses on the UTXO Ledger. We will skip explaining the whole picture for the time
@@ -32,7 +33,7 @@ Ledger, the private key is represented by the address (the hash of the public
 key). That address holds balances of colored tokens. Those tokens are
 _controlled_ by the private key.
 
-In ISCP we extend the concept of _address_ with the concept of `account`. An
+In IOTA Smart Contracts, we extend the concept of _address_ with the concept of `account`. An
 `account` contains colored tokens just like an `address`. The `account` is
 located on some chain, and it is controlled by the same private key as the
 associated address. So, an address can control tokens on the UTXO Ledger
@@ -53,13 +54,13 @@ func TestTutorial5(t *testing.T) {
  userWallet, userAddress := env.NewKeyPairWithFunds(env.NewSeedFromIndex(5))
  userAgentID := iscp.NewAgentID(userAddress, 0)
 
- env.AssertAddressBalance(userAddress, colored.IOTA, solo.Saldo)
+ env.AssertAddressBalance(userAddress, colored.IOTA, utxodb.FundsFromFaucetAmount)
  chain.AssertAccountBalance(userAgentID, colored.IOTA, 0) // empty on-chain
 
  t.Logf("Address of the userWallet is: %s", userAddress.Base58())
  numIotas := env.GetAddressBalance(userAddress, colored.IOTA)
  t.Logf("balance of the userWallet is: %d iota", numIotas)
- env.AssertAddressBalance(userAddress, colored.IOTA, solo.Saldo)
+ env.AssertAddressBalance(userAddress, colored.IOTA, utxodb.FundsFromFaucetAmount)
 
  // send 42 iotas from wallet to own account on-chain, controlled by the same wallet
  req := solo.NewCallParams(accounts.Contract.Name, accounts.FuncDeposit.Name).WithIotas(42)
@@ -67,7 +68,7 @@ func TestTutorial5(t *testing.T) {
  require.NoError(t, err)
 
  // check address balance: must be 42 iotas less
- env.AssertAddressBalance(userAddress, colored.IOTA, solo.Saldo-42)
+ env.AssertAddressBalance(userAddress, colored.IOTA, utxodb.FundsFromFaucetAmount-42)
  // check the on-chain account. Must contain 42 iotas
  chain.AssertAccountBalance(userAgentID, colored.IOTA, 42)
 
@@ -77,12 +78,12 @@ func TestTutorial5(t *testing.T) {
  require.NoError(t, err)
 
  // we are back to initial situation: IOTA is fee-less!
- env.AssertAddressBalance(userAddress, colored.IOTA, solo.Saldo)
+ env.AssertAddressBalance(userAddress, colored.IOTA, utxodb.FundsFromFaucetAmount)
  chain.AssertAccountBalance(userAgentID, colored.IOTA, 0) // empty
 }
 ```
 
-The example above creates a chain, then creates a wallet with `solo.Saldo` iotas (1 Mi) and
+The example above creates a chain, then creates a wallet with `utxodb.FundsFromFaucetAmount` iotas (1 Mi) and
 sends (deposits) 42 iotas to the corresponding on-chain account by posting
 a `deposit` request to the `accounts` core contract on that chain. That account
 will now contain 42 iotas. The address on the UTXO Ledger will contain 42 iotas

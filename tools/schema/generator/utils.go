@@ -1,3 +1,6 @@
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 package generator
 
 import (
@@ -5,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"sort"
 	"strings"
 )
 
@@ -19,6 +21,9 @@ var (
 
 // capitalize first letter
 func capitalize(name string) string {
+	if name == "" {
+		return ""
+	}
 	return upper(name[:1]) + name[1:]
 }
 
@@ -91,44 +96,11 @@ func snake(name string) string {
 	return lower(name)
 }
 
-func sortedFields(dict FieldMap) []string {
-	keys := make([]string, 0)
-	for key := range dict {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func sortedFuncDescs(dict FuncDefMap) []string {
-	keys := make([]string, 0)
-	for key := range dict {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func sortedKeys(dict StringMap) []string {
-	keys := make([]string, 0)
-	for key := range dict {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func sortedMaps(dict StringMapMap) []string {
-	keys := make([]string, 0)
-	for key := range dict {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
 // uncapitalize first letter
 func uncapitalize(name string) string {
+	if name == "" {
+		return ""
+	}
 	return lower(name[:1]) + name[1:]
 }
 

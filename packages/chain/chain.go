@@ -1,4 +1,3 @@
-// Copyright 2020 IOTA Stiftung
 // SPDX-License-Identifier: Apache-2.0
 
 package chain
@@ -7,170 +6,232 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/iotaledger/wasp/packages/iscp/request"
-
-	"github.com/iotaledger/goshimmer/packages/ledgerstate"
 	"github.com/iotaledger/hive.go/events"
+	"github.com/iotaledger/hive.go/kvstore"
 	"github.com/iotaledger/hive.go/logger"
+	iotago "github.com/iotaledger/iota.go/v3"
+	"github.com/iotaledger/iota.go/v3/nodeclient"
+	"github.com/iotaledger/wasp/packages/chain/mempool"
 	"github.com/iotaledger/wasp/packages/chain/messages"
-	"github.com/iotaledger/wasp/packages/hashing"
+	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/packages/iscp"
 	"github.com/iotaledger/wasp/packages/iscp/coreutil"
+	"github.com/iotaledger/wasp/packages/kv/trie"
+	"github.com/iotaledger/wasp/packages/metrics/nodeconnmetrics"
 	"github.com/iotaledger/wasp/packages/peering"
 	"github.com/iotaledger/wasp/packages/state"
 	"github.com/iotaledger/wasp/packages/tcrypto"
 	"github.com/iotaledger/wasp/packages/util/ready"
+	"github.com/iotaledger/wasp/packages/vm/core/blocklog"
+	"github.com/iotaledger/wasp/packages/vm/core/governance"
 	"github.com/iotaledger/wasp/packages/vm/processors"
 )
 
 type ChainCore interface {
 	ID() *iscp.ChainID
 	GetCommitteeInfo() *CommitteeInfo
-	ReceiveMessage(interface{})
-	Events() ChainEvents
+	StateCandidateToStateManager(state.VirtualStateAccess, *iotago.UTXOInput)
+	TriggerChainTransition(*ChainTransitionEventData)
 	Processors() *processors.Cache
 	GlobalStateSync() coreutil.ChainStateSync
 	GetStateReader() state.OptimisticStateReader
+	GetChainNodes() []peering.PeerStatusProvider     // CommitteeNodes + AccessNodes
+	GetCandidateNodes() []*governance.AccessNodeInfo // All the current candidates.
 	Log() *logger.Logger
+	EnqueueDismissChain(reason string)
+	EnqueueAliasOutput(*iscp.AliasOutputWithID)
 }
 
 // ChainEntry interface to access chain from the chain registry side
 type ChainEntry interface {
-	ReceiveTransaction(*ledgerstate.Transaction)
-	ReceiveInclusionState(ledgerstate.TransactionID, ledgerstate.InclusionState)
-	ReceiveState(stateOutput *ledgerstate.AliasOutput, timestamp time.Time)
-	ReceiveOutput(output ledgerstate.Output)
-	ReceiveOffLedgerRequest(req *request.OffLedger, senderNetID string)
-
 	Dismiss(reason string)
 	IsDismissed() bool
 }
 
 // ChainRequests is an interface to query status of the request
 type ChainRequests interface {
-	GetRequestProcessingStatus(id iscp.RequestID) RequestProcessingStatus
-	EventRequestProcessed() *events.Event
+	GetRequestReceipt(id iscp.RequestID) (*blocklog.RequestReceipt, error)
+	TranslateError(e *iscp.UnresolvedVMError) (*iscp.VMError, error)
+	AttachToRequestProcessed(func(iscp.RequestID)) (attachID *events.Closure)
+	DetachFromRequestProcessed(attachID *events.Closure)
+	EnqueueOffLedgerRequestMsg(msg *messages.OffLedgerRequestMsgIn)
 }
 
-type ChainEvents interface {
-	RequestProcessed() *events.Event
-	ChainTransition() *events.Event
+type ChainMetrics interface {
+	GetNodeConnectionMetrics() nodeconnmetrics.NodeConnectionMessagesMetrics
+	GetConsensusWorkflowStatus() ConsensusWorkflowStatus
+	GetConsensusPipeMetrics() ConsensusPipeMetrics
+}
+
+type ChainRunner interface {
+	GetAnchorOutput() *iscp.AliasOutputWithID
+	GetTimeData() iscp.TimeData
+	GetDB() kvstore.KVStore
 }
 
 type Chain interface {
 	ChainCore
 	ChainRequests
 	ChainEntry
+	ChainMetrics
+	ChainRunner
 }
 
 // Committee is ordered (indexed 0..size-1) list of peers which run the consensus
 type Committee interface {
-	Address() ledgerstate.Address
+	Address() iotago.Address
 	Size() uint16
 	Quorum() uint16
 	OwnPeerIndex() uint16
-	DKShare() *tcrypto.DKShare
-	SendMsg(targetPeerIndex uint16, msgType byte, msgData []byte) error
-	SendMsgToPeers(msgType byte, msgData []byte, ts int64, except ...uint16)
+	DKShare() tcrypto.DKShare
 	IsAlivePeer(peerIndex uint16) bool
 	QuorumIsAlive(quorum ...uint16) bool
 	PeerStatus() []*PeerStatus
-	Attach(chain ChainCore)
 	IsReady() bool
 	Close()
 	RunACSConsensus(value []byte, sessionID uint64, stateIndex uint32, callback func(sessionID uint64, acs [][]byte))
-	GetOtherValidatorsPeerIDs() []string
-	GetRandomValidators(upToN int) []string
+	GetRandomValidators(upToN int) []*cryptolib.PublicKey // TODO: Remove after OffLedgerRequest dissemination is changed.
 }
 
+type (
+	NodeConnectionAliasOutputHandlerFun     func(*iscp.AliasOutputWithID)
+	NodeConnectionOnLedgerRequestHandlerFun func(iscp.OnLedgerRequest)
+	NodeConnectionInclusionStateHandlerFun  func(iotago.TransactionID, string)
+	NodeConnectionMilestonesHandlerFun      func(*nodeclient.MilestoneInfo)
+)
+
 type NodeConnection interface {
-	PullBacklog(addr *ledgerstate.AliasAddress)
-	PullState(addr *ledgerstate.AliasAddress)
-	PullConfirmedTransaction(addr ledgerstate.Address, txid ledgerstate.TransactionID)
-	PullTransactionInclusionState(addr ledgerstate.Address, txid ledgerstate.TransactionID)
-	PullConfirmedOutput(addr ledgerstate.Address, outputID ledgerstate.OutputID)
-	PostTransaction(tx *ledgerstate.Transaction)
+	RegisterChain(chainID *iscp.ChainID, stateOutputHandler, outputHandler func(iotago.OutputID, iotago.Output))
+	UnregisterChain(chainID *iscp.ChainID)
+
+	PublishTransaction(chainID *iscp.ChainID, stateIndex uint32, tx *iotago.Transaction) error
+	PullLatestOutput(chainID *iscp.ChainID)
+	PullTxInclusionState(chainID *iscp.ChainID, txid iotago.TransactionID)
+	PullStateOutputByID(chainID *iscp.ChainID, id *iotago.UTXOInput)
+
+	AttachTxInclusionStateEvents(chainID *iscp.ChainID, handler NodeConnectionInclusionStateHandlerFun) (*events.Closure, error)
+	DetachTxInclusionStateEvents(chainID *iscp.ChainID, closure *events.Closure) error
+	AttachMilestones(handler NodeConnectionMilestonesHandlerFun) *events.Closure
+	DetachMilestones(attachID *events.Closure)
+
+	SetMetrics(metrics nodeconnmetrics.NodeConnectionMetrics)
+	GetMetrics() nodeconnmetrics.NodeConnectionMetrics
+	Close()
+}
+
+type ChainNodeConnection interface {
+	AttachToAliasOutput(NodeConnectionAliasOutputHandlerFun)
+	DetachFromAliasOutput()
+	AttachToOnLedgerRequest(NodeConnectionOnLedgerRequestHandlerFun)
+	DetachFromOnLedgerRequest()
+	AttachToTxInclusionState(NodeConnectionInclusionStateHandlerFun)
+	DetachFromTxInclusionState()
+	AttachToMilestones(NodeConnectionMilestonesHandlerFun)
+	DetachFromMilestones()
+	Close()
+
+	PublishTransaction(stateIndex uint32, tx *iotago.Transaction) error
+	PullLatestOutput()
+	PullTxInclusionState(txid iotago.TransactionID)
+	PullStateOutputByID(*iotago.UTXOInput)
+
+	GetMetrics() nodeconnmetrics.NodeConnectionMessagesMetrics
 }
 
 type StateManager interface {
 	Ready() *ready.Ready
-	EventGetBlockMsg(msg *messages.GetBlockMsg)
-	EventBlockMsg(msg *messages.BlockMsg)
-	EventStateMsg(msg *messages.StateMsg)
-	EventOutputMsg(msg ledgerstate.Output)
-	EventStateCandidateMsg(msg *messages.StateCandidateMsg)
-	EventTimerMsg(msg messages.TimerTick)
+	EnqueueGetBlockMsg(msg *messages.GetBlockMsgIn)
+	EnqueueBlockMsg(msg *messages.BlockMsgIn)
+	EnqueueAliasOutput(*iscp.AliasOutputWithID)
+	EnqueueStateCandidateMsg(state.VirtualStateAccess, *iotago.UTXOInput)
+	EnqueueTimerMsg(msg messages.TimerTick)
 	GetStatusSnapshot() *SyncInfo
+	SetChainPeers(peers []*cryptolib.PublicKey)
 	Close()
 }
 
 type Consensus interface {
-	EventStateTransitionMsg(*messages.StateTransitionMsg)
-	EventSignedResultMsg(*messages.SignedResultMsg)
-	EventSignedResultAckMsg(*messages.SignedResultAckMsg)
-	EventInclusionsStateMsg(*messages.InclusionStateMsg)
-	EventAsynchronousCommonSubsetMsg(msg *messages.AsynchronousCommonSubsetMsg)
-	EventVMResultMsg(msg *messages.VMResultMsg)
-	EventTimerMsg(messages.TimerTick)
+	EnqueueStateTransitionMsg(state.VirtualStateAccess, *iscp.AliasOutputWithID, time.Time)
+	EnqueueSignedResultMsg(*messages.SignedResultMsgIn)
+	EnqueueSignedResultAckMsg(*messages.SignedResultAckMsgIn)
+	EnqueueTxInclusionsStateMsg(iotago.TransactionID, string)
+	EnqueueAsynchronousCommonSubsetMsg(msg *messages.AsynchronousCommonSubsetMsg)
+	EnqueueVMResultMsg(msg *messages.VMResultMsg)
+	EnqueueTimerMsg(messages.TimerTick)
 	IsReady() bool
 	Close()
 	GetStatusSnapshot() *ConsensusInfo
+	GetWorkflowStatus() ConsensusWorkflowStatus
 	ShouldReceiveMissingRequest(req iscp.Request) bool
-}
-
-type Mempool interface {
-	ReceiveRequests(reqs ...iscp.Request)
-	ReceiveRequest(req iscp.Request) bool
-	RemoveRequests(reqs ...iscp.RequestID)
-	ReadyNow(nowis ...time.Time) []iscp.Request
-	ReadyFromIDs(nowis time.Time, reqIDs ...iscp.RequestID) ([]iscp.Request, []int, bool)
-	HasRequest(id iscp.RequestID) bool
-	GetRequest(id iscp.RequestID) iscp.Request
-	Info() MempoolInfo
-	WaitRequestInPool(reqid iscp.RequestID, timeout ...time.Duration) bool // for testing
-	WaitInBufferEmpty(timeout ...time.Duration) bool                       // for testing
-	Close()
+	GetPipeMetrics() ConsensusPipeMetrics
 }
 
 type AsynchronousCommonSubsetRunner interface {
 	RunACSConsensus(value []byte, sessionID uint64, stateIndex uint32, callback func(sessionID uint64, acs [][]byte))
-	TryHandleMessage(recv *peering.RecvEvent) bool
 	Close()
 }
 
-type MempoolInfo struct {
-	TotalPool      int
-	ReadyCounter   int
-	InBufCounter   int
-	OutBufCounter  int
-	InPoolCounter  int
-	OutPoolCounter int
+type WAL interface {
+	Write(bytes []byte) error
+	Contains(i uint32) bool
+	Read(i uint32) ([]byte, error)
 }
 
 type SyncInfo struct {
 	Synced                bool
 	SyncedBlockIndex      uint32
-	SyncedStateHash       hashing.HashValue
+	SyncedStateCommitment trie.VCommitment
 	SyncedStateTimestamp  time.Time
-	StateOutputBlockIndex uint32
-	StateOutputID         ledgerstate.OutputID
-	StateOutputHash       hashing.HashValue
+	StateOutput           *iscp.AliasOutputWithID
+	StateOutputCommitment trie.VCommitment
 	StateOutputTimestamp  time.Time
 }
 
 type ConsensusInfo struct {
 	StateIndex uint32
-	Mempool    MempoolInfo
+	Mempool    mempool.MempoolInfo
 	TimerTick  int
+	TimeData   iscp.TimeData
+}
+
+type ConsensusWorkflowStatus interface {
+	IsStateReceived() bool
+	IsBatchProposalSent() bool
+	IsConsensusBatchKnown() bool
+	IsVMStarted() bool
+	IsVMResultSigned() bool
+	IsTransactionFinalized() bool
+	IsTransactionPosted() bool
+	IsTransactionSeen() bool
+	IsInProgress() bool
+	GetBatchProposalSentTime() time.Time
+	GetConsensusBatchKnownTime() time.Time
+	GetVMStartedTime() time.Time
+	GetVMResultSignedTime() time.Time
+	GetTransactionFinalizedTime() time.Time
+	GetTransactionPostedTime() time.Time
+	GetTransactionSeenTime() time.Time
+	GetCompletedTime() time.Time
+	GetCurrentStateIndex() uint32
+}
+
+type ConsensusPipeMetrics interface {
+	GetEventStateTransitionMsgPipeSize() int
+	GetEventSignedResultMsgPipeSize() int
+	GetEventSignedResultAckMsgPipeSize() int
+	GetEventInclusionStateMsgPipeSize() int
+	GetEventACSMsgPipeSize() int
+	GetEventVMResultMsgPipeSize() int
+	GetEventTimerMsgPipeSize() int
 }
 
 type ReadyListRecord struct {
-	Request iscp.Request
+	Request iscp.Calldata
 	Seen    map[uint16]bool
 }
 
 type CommitteeInfo struct {
-	Address       ledgerstate.Address
+	Address       iotago.Address
 	Size          uint16
 	Quorum        uint16
 	QuorumIsAlive bool
@@ -179,14 +240,14 @@ type CommitteeInfo struct {
 
 type PeerStatus struct {
 	Index     int
-	PeeringID string
-	IsSelf    bool
+	PubKey    *cryptolib.PublicKey
+	NetID     string
 	Connected bool
 }
 
 type ChainTransitionEventData struct {
 	VirtualState    state.VirtualStateAccess
-	ChainOutput     *ledgerstate.AliasOutput
+	ChainOutput     *iscp.AliasOutputWithID
 	OutputTimestamp time.Time
 }
 
@@ -205,4 +266,11 @@ const (
 const (
 	// TimerTickPeriod time tick for consensus and state manager objects
 	TimerTickPeriod = 100 * time.Millisecond
+)
+
+const (
+	PeerMsgTypeMissingRequestIDs = iota
+	PeerMsgTypeMissingRequest
+	PeerMsgTypeOffLedgerRequest
+	PeerMsgTypeRequestAck
 )

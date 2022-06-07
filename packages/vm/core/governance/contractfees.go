@@ -1,3 +1,6 @@
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 package governance
 
 import (
@@ -10,13 +13,6 @@ type ContractFeesRecord struct {
 	OwnerFee uint64
 	// Validator part of the fee. If it is 0, it means chain-global default is in effect
 	ValidatorFee uint64
-}
-
-func NewContractFeesRecord(ownerFee, validatorFee uint64) *ContractFeesRecord {
-	return &ContractFeesRecord{
-		OwnerFee:     ownerFee,
-		ValidatorFee: validatorFee,
-	}
 }
 
 func ContractFeesRecordFromMarshalUtil(mu *marshalutil.MarshalUtil) (*ContractFeesRecord, error) {
@@ -36,8 +32,4 @@ func (p *ContractFeesRecord) Bytes() []byte {
 	mu.WriteUint64(p.OwnerFee)
 	mu.WriteUint64(p.ValidatorFee)
 	return mu.Bytes()
-}
-
-func ContractFeesRecordFromBytes(data []byte) (*ContractFeesRecord, error) {
-	return ContractFeesRecordFromMarshalUtil(marshalutil.New(data))
 }

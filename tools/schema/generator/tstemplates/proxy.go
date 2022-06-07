@@ -1,3 +1,6 @@
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 package tstemplates
 
 var proxyTs = map[string]string{
@@ -10,8 +13,7 @@ $#if map typedefProxyMap
 	"proxyMethods": `
 $#if separator newline
 $#set separator $true
-$#set varID sc.idxMap[sc.Idx$Kind$FldName]
-$#if core setCoreVarID
+$#each fldComment _fldComment
 $#if array proxyArray proxyMethods2
 `,
 	// *******************************
@@ -20,17 +22,12 @@ $#if map proxyMap proxyMethods3
 `,
 	// *******************************
 	"proxyMethods3": `
-$#if basetype proxyBaseType proxyNewType
-`,
-	// *******************************
-	"setCoreVarID": `
-$#set varID wasmlib.Key32.fromString(sc.$Kind$FldName)
+$#if basetype proxyBaseType proxyOtherType
 `,
 	// *******************************
 	"proxyArray": `
-    $fldName(): sc.ArrayOf$mut$FldType {
-		let arrID = wasmlib.getObjectID(this.mapID, $varID, $arrayTypeID|$fldTypeID);
-		return new sc.ArrayOf$mut$FldType(arrID);
+	$fldName(): sc.ArrayOf$mut$FldType {
+		return new sc.ArrayOf$mut$FldType(this.proxy.root(sc.$Kind$FldName));
 	}
 `,
 	// *******************************
@@ -39,27 +36,26 @@ $#if this proxyMapThis proxyMapOther
 `,
 	// *******************************
 	"proxyMapThis": `
-    $fldName(): sc.Map$fldMapKey$+To$mut$FldType {
-		return new sc.Map$fldMapKey$+To$mut$FldType(this.mapID);
+	$fldName(): sc.Map$FldMapKey$+To$mut$FldType {
+		return new sc.Map$FldMapKey$+To$mut$FldType(this.proxy);
 	}
 `,
 	// *******************************
 	"proxyMapOther": `
-    $fldName(): sc.Map$fldMapKey$+To$mut$FldType {
-		let mapID = wasmlib.getObjectID(this.mapID, $varID, wasmlib.TYPE_MAP);
-		return new sc.Map$fldMapKey$+To$mut$FldType(mapID);
+	$fldName(): sc.Map$FldMapKey$+To$mut$FldType {
+		return new sc.Map$FldMapKey$+To$mut$FldType(this.proxy.root(sc.$Kind$FldName));
 	}
 `,
 	// *******************************
 	"proxyBaseType": `
-    $fldName(): wasmlib.Sc$mut$FldType {
-		return new wasmlib.Sc$mut$FldType(this.mapID, $varID);
+	$fldName(): wasmtypes.Sc$mut$FldType {
+		return new wasmtypes.Sc$mut$FldType(this.proxy.root(sc.$Kind$FldName));
 	}
 `,
 	// *******************************
-	"proxyNewType": `
-    $fldName(): sc.$mut$FldType {
-		return new sc.$mut$FldType(this.mapID, $varID);
+	"proxyOtherType": `
+	$fldName(): sc.$mut$FldType {
+		return new sc.$mut$FldType(this.proxy.root(sc.$Kind$FldName));
 	}
 `,
 }

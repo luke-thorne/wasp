@@ -1,6 +1,11 @@
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 package generator
 
-var commonTemplates = map[string]string{
+import "github.com/iotaledger/wasp/tools/schema/model"
+
+var commonTemplates = model.StringMap{
 	// *******************************
 	"else": `
 `,
@@ -14,6 +19,14 @@ var commonTemplates = map[string]string{
 	// *******************************
 	"copyright": `
 $#emit initGlobals
+$#if copyrightMessage userCopyrightMessage defaultCopyrightMessage
+`,
+	// *******************************
+	"userCopyrightMessage": `
+$copyrightMessage
+`,
+	// *******************************
+	"defaultCopyrightMessage": `
 // Copyright 2020 IOTA Stiftung
 // SPDX-License-Identifier: Apache-2.0
 
@@ -34,7 +47,7 @@ import (
 	"testing"
 
 	"$module/go/$package"
-	"github.com/iotaledger/wasp/packages/vm/wasmsolo"
+	"github.com/iotaledger/wasp/packages/wasmvm/wasmsolo"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,12 +59,10 @@ func TestDeploy(t *testing.T) {
 	// *******************************
 	"setupInitFunc": `
 $#set initFunc 
-$#set initMap 
 $#if init setInitFunc
 `,
 	// *******************************
 	"setInitFunc": `
 $#set initFunc Init
-$#set initMap , keyMap[:], idxMap[:]
 `,
 }

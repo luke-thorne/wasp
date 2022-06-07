@@ -1,11 +1,25 @@
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 package gotemplates
 
-var GoTemplates = []map[string]string{
-	goCommon,
+import "github.com/iotaledger/wasp/tools/schema/model"
+
+var config = map[string]string{
+	"language":   "Go",
+	"extension":  ".go",
+	"rootFolder": "go",
+	"funcRegexp": `^func (\w+).+$`,
+}
+
+var Templates = []map[string]string{
+	config, // always first one
+	common,
 	constsGo,
 	contractGo,
+	eventsGo,
+	eventhandlersGo,
 	funcsGo,
-	keysGo,
 	libGo,
 	mainGo,
 	paramsGo,
@@ -16,28 +30,80 @@ var GoTemplates = []map[string]string{
 	typedefsGo,
 }
 
-var goCommon = map[string]string{
+var TypeDependent = model.StringMapMap{
+	"fldLangType": {
+		"Address":   "wasmtypes.ScAddress",
+		"AgentID":   "wasmtypes.ScAgentID",
+		"BigInt":    "wasmtypes.ScBigInt",
+		"Bool":      "bool",
+		"Bytes":     "[]byte",
+		"ChainID":   "wasmtypes.ScChainID",
+		"Hash":      "wasmtypes.ScHash",
+		"Hname":     "wasmtypes.ScHname",
+		"Int8":      "int8",
+		"Int16":     "int16",
+		"Int32":     "int32",
+		"Int64":     "int64",
+		"NftID":     "wasmtypes.ScNftID",
+		"RequestID": "wasmtypes.ScRequestID",
+		"String":    "string",
+		"TokenID":   "wasmtypes.ScTokenID",
+		"Uint8":     "uint8",
+		"Uint16":    "uint16",
+		"Uint32":    "uint32",
+		"Uint64":    "uint64",
+	},
+}
+
+var common = map[string]string{
 	// *******************************
-	"initGlobals": `
-$#set arrayTypeID wasmlib.TYPE_ARRAY
-$#if core setArrayTypeID
+	"importWasmLib": `
+import "github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib"
 `,
 	// *******************************
-	"setArrayTypeID": `
-$#set arrayTypeID wasmlib.TYPE_ARRAY16
+	"importWasmTypes": `
+import "github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib/wasmtypes"
 `,
 	// *******************************
 	"goPackage": `
 package $package
 `,
 	// *******************************
-	"importWasmLib": `
-
-import "github.com/iotaledger/wasp/packages/vm/wasmlib/go/wasmlib"
-`,
-	// *******************************
 	"goHeader": `
 $#emit goPackage
+
 $#emit importWasmLib
+`,
+	// *******************************
+	"_eventComment": `
+$nextLine
+`,
+	// *******************************
+	"_eventParamComment": `
+	$nextLine
+`,
+	// *******************************
+	"_fldComment": `
+$nextLine
+`,
+	// *******************************
+	"_funcComment": `
+$nextLine
+`,
+	// *******************************
+	"_funcAccessComment": `
+	$nextLine
+`,
+	// *******************************
+	"_structComment": `
+$nextLine
+`,
+	// *******************************
+	"_structFieldComment": `
+	$nextLine
+`,
+	// *******************************
+	"_typedefComment": `
+$nextLine
 `,
 }

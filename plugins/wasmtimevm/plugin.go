@@ -10,7 +10,7 @@ import (
 	"github.com/iotaledger/hive.go/node"
 	"github.com/iotaledger/wasp/packages/iscp"
 	"github.com/iotaledger/wasp/packages/vm/vmtypes"
-	"github.com/iotaledger/wasp/packages/vm/wasmproc"
+	"github.com/iotaledger/wasp/packages/wasmvm/wasmhost"
 	"github.com/iotaledger/wasp/plugins/processors"
 )
 
@@ -20,7 +20,7 @@ const pluginName = "WasmTimeVM"
 var log *logger.Logger
 
 func Init() *node.Plugin {
-	return node.NewPlugin(pluginName, node.Enabled, configure, run)
+	return node.NewPlugin(pluginName, nil, node.Enabled, configure, run)
 }
 
 func configure(_ *node.Plugin) {
@@ -30,7 +30,7 @@ func configure(_ *node.Plugin) {
 	err := processors.Config.RegisterVMType(vmtypes.WasmTime, func(binary []byte) (iscp.VMProcessor, error) {
 		// TODO (via config?) pass non-default timeout for WasmTime processor like this:
 		// WasmTimeout = 3 * time.Second
-		return wasmproc.GetProcessor(binary, log)
+		return wasmhost.GetProcessor(binary, log)
 	})
 	if err != nil {
 		log.Panicf("%v: %v", pluginName, err)

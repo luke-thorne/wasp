@@ -10,6 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/iotaledger/wasp/packages/authentication/shared/permissions"
+
+	"github.com/iotaledger/wasp/packages/authentication"
+
 	"github.com/iotaledger/hive.go/daemon"
 	"github.com/iotaledger/hive.go/logger"
 	"github.com/iotaledger/hive.go/node"
@@ -18,9 +22,9 @@ import (
 	"github.com/iotaledger/wasp/packages/iscp"
 	"github.com/iotaledger/wasp/packages/kv/dict"
 	"github.com/iotaledger/wasp/packages/kv/optimism"
+	"github.com/iotaledger/wasp/packages/metrics/nodeconnmetrics"
 	"github.com/iotaledger/wasp/packages/parameters"
 	registry_pkg "github.com/iotaledger/wasp/packages/registry"
-	"github.com/iotaledger/wasp/packages/util/auth"
 	"github.com/iotaledger/wasp/packages/vm/viewcontext"
 	"github.com/iotaledger/wasp/plugins/chains"
 	"github.com/iotaledger/wasp/plugins/peering"
@@ -33,17 +37,17 @@ const PluginName = "Dashboard"
 
 var (
 	Server = echo.New()
-
-	log *logger.Logger
-
-	d *dashboard.Dashboard
+	log    *logger.Logger
+	d      *dashboard.Dashboard
 )
 
 func Init() *node.Plugin {
-	return node.NewPlugin(PluginName, node.Enabled, configure, run)
+	return node.NewPlugin(PluginName, nil, node.Enabled, configure, run)
 }
 
 type waspServices struct{}
+
+var _ dashboard.WaspServices = &waspServices{}
 
 func (w *waspServices) ConfigDump() map[string]interface{} {
 	return parameters.Dump()
@@ -54,7 +58,8 @@ func (w *waspServices) ExploreAddressBaseURL() string {
 	if baseURL != "" {
 		return baseURL
 	}
-	return exploreAddressURLFromGoshimmerURI(parameters.GetString(parameters.NodeAddress))
+	// TODO what should be this URL?
+	return exploreAddressURLFromL1URI(parameters.GetString("TODO"))
 }
 
 func (w *waspServices) PeeringStats() (*dashboard.PeeringStats, error) {
@@ -76,7 +81,7 @@ func (w *waspServices) PeeringStats() (*dashboard.PeeringStats, error) {
 	for i, t := range tpeers {
 		ret.TrustedPeers[i] = dashboard.TrustedPeer{
 			NetID:  t.NetID,
-			PubKey: t.PubKey,
+			PubKey: *t.PubKey,
 		}
 	}
 	return ret, nil
@@ -109,22 +114,51 @@ func (w *waspServices) GetChainCommitteeInfo(chainID *iscp.ChainID) (*chain.Comm
 	return ch.GetCommitteeInfo(), nil
 }
 
+func (w *waspServices) GetChainNodeConnectionMetrics(chainID *iscp.ChainID) (nodeconnmetrics.NodeConnectionMessagesMetrics, error) {
+	ch := chains.AllChains().Get(chainID)
+	if ch == nil {
+		return nil, echo.NewHTTPError(http.StatusNotFound, "Chain not found")
+	}
+	return ch.GetNodeConnectionMetrics(), nil
+}
+
+func (w *waspServices) GetNodeConnectionMetrics() (nodeconnmetrics.NodeConnectionMetrics, error) {
+	chs := chains.AllChains()
+	return chs.GetNodeConnectionMetrics(), nil
+}
+
+func (w *waspServices) GetChainConsensusWorkflowStatus(chainID *iscp.ChainID) (chain.ConsensusWorkflowStatus, error) {
+	ch := chains.AllChains().Get(chainID)
+	if ch == nil {
+		return nil, echo.NewHTTPError(http.StatusNotFound, "Chain not found")
+	}
+	return ch.GetConsensusWorkflowStatus(), nil
+}
+
+func (w *waspServices) GetChainConsensusPipeMetrics(chainID *iscp.ChainID) (chain.ConsensusPipeMetrics, error) {
+	ch := chains.AllChains().Get(chainID)
+	if ch == nil {
+		return nil, echo.NewHTTPError(http.StatusNotFound, "Chain not found")
+	}
+	return ch.GetConsensusPipeMetrics(), nil
+}
+
 func (w *waspServices) CallView(chainID *iscp.ChainID, scName, funName string, params dict.Dict) (dict.Dict, error) {
 	ch := chains.AllChains().Get(chainID)
 	if ch == nil {
 		return nil, echo.NewHTTPError(http.StatusNotFound, "Chain not found")
 	}
-	vctx := viewcontext.NewFromChain(ch)
+	vctx := viewcontext.New(ch)
 	var ret dict.Dict
 	err := optimism.RetryOnStateInvalidated(func() error {
 		var err error
-		ret, err = vctx.CallView(iscp.Hn(scName), iscp.Hn(funName), params)
+		ret, err = vctx.CallViewExternal(iscp.Hn(scName), iscp.Hn(funName), params)
 		return err
 	})
 	return ret, err
 }
 
-func exploreAddressURLFromGoshimmerURI(uri string) string {
+func exploreAddressURLFromL1URI(uri string) string {
 	url := strings.Split(uri, ":")[0] + ":8081/explorer/address"
 	if !strings.HasPrefix(url, "http") {
 		return "http://" + url
@@ -141,7 +175,13 @@ func configure(*node.Plugin) {
 		Format: `${time_rfc3339_nano} ${remote_ip} ${method} ${uri} ${status} error="${error}"` + "\n",
 	}))
 	Server.Use(middleware.Recover())
-	auth.AddAuthentication(Server, parameters.GetStringToString(parameters.DashboardAuth))
+
+	claimValidator := func(claims *authentication.WaspClaims) bool {
+		// The Dashboard will be accessible if the token has a 'Dashboard' claim
+		return claims.HasPermission(permissions.Dashboard)
+	}
+
+	authentication.AddAuthentication(Server, registry.DefaultRegistry, parameters.DashboardAuth, claimValidator)
 
 	d = dashboard.Init(Server, &waspServices{}, log)
 }
@@ -149,11 +189,11 @@ func configure(*node.Plugin) {
 func run(_ *node.Plugin) {
 	log.Infof("Starting %s ...", PluginName)
 	if err := daemon.BackgroundWorker(PluginName, worker); err != nil {
-		log.Errorf("Error starting as daemon: %s", err)
+		log.Errorf("error starting as daemon: %s", err)
 	}
 }
 
-func worker(shutdownSignal <-chan struct{}) {
+func worker(ctx context.Context) {
 	stopped := make(chan struct{})
 	go func() {
 		defer close(stopped)
@@ -161,13 +201,13 @@ func worker(shutdownSignal <-chan struct{}) {
 		log.Infof("%s started, bind address=%s", PluginName, bindAddr)
 		if err := Server.Start(bindAddr); err != nil {
 			if !errors.Is(err, http.ErrServerClosed) {
-				log.Errorf("Error serving: %s", err)
+				log.Errorf("error serving: %s", err)
 			}
 		}
 	}()
 
 	select {
-	case <-shutdownSignal:
+	case <-ctx.Done():
 	case <-stopped:
 	}
 
@@ -179,6 +219,6 @@ func worker(shutdownSignal <-chan struct{}) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	if err := Server.Shutdown(ctx); err != nil {
-		log.Errorf("Error stopping: %s", err)
+		log.Errorf("error stopping: %s", err)
 	}
 }

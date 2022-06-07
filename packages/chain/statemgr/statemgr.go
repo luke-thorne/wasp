@@ -9,103 +9,160 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/iotaledger/goshimmer/packages/ledgerstate"
 	"github.com/iotaledger/hive.go/kvstore"
 	"github.com/iotaledger/hive.go/logger"
+	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/wasp/packages/chain"
 	"github.com/iotaledger/wasp/packages/chain/messages"
+	"github.com/iotaledger/wasp/packages/cryptolib"
+	"github.com/iotaledger/wasp/packages/iscp"
+	"github.com/iotaledger/wasp/packages/kv/trie"
+	"github.com/iotaledger/wasp/packages/metrics"
 	"github.com/iotaledger/wasp/packages/peering"
 	"github.com/iotaledger/wasp/packages/state"
+	"github.com/iotaledger/wasp/packages/util/pipe"
 	"github.com/iotaledger/wasp/packages/util/ready"
 	"go.uber.org/atomic"
 )
 
 type stateManager struct {
-	ready                  *ready.Ready
-	store                  kvstore.KVStore
-	chain                  chain.ChainCore
-	peers                  peering.PeerDomainProvider
-	nodeConn               chain.NodeConnection
-	pullStateRetryTime     time.Time
-	solidState             state.VirtualStateAccess
-	stateOutput            *ledgerstate.AliasOutput
-	stateOutputTimestamp   time.Time
-	currentSyncData        atomic.Value
-	notifiedAnchorOutputID ledgerstate.OutputID
-	syncingBlocks          *syncingBlocks
-	timers                 StateManagerTimers
-	log                    *logger.Logger
+	ready                       *ready.Ready
+	store                       kvstore.KVStore
+	chain                       chain.ChainCore
+	domain                      *DomainWithFallback
+	nodeConn                    chain.ChainNodeConnection
+	pullStateRetryTime          time.Time
+	solidState                  state.VirtualStateAccess
+	stateOutput                 *iscp.AliasOutputWithID
+	stateOutputTimestamp        time.Time
+	currentSyncData             atomic.Value
+	notifiedAnchorOutputID      *iotago.UTXOInput
+	syncingBlocks               *syncingBlocks
+	receivePeerMessagesAttachID interface{}
+	timers                      StateManagerTimers
+	log                         *logger.Logger
 
 	// Channels for accepting external events.
-	eventGetBlockMsgCh       chan *messages.GetBlockMsg
-	eventBlockMsgCh          chan *messages.BlockMsg
-	eventStateOutputMsgCh    chan *messages.StateMsg
-	eventOutputMsgCh         chan ledgerstate.Output
-	eventStateCandidateMsgCh chan *messages.StateCandidateMsg
-	eventTimerMsgCh          chan messages.TimerTick
-	closeCh                  chan bool
+	eventGetBlockMsgPipe       pipe.Pipe
+	eventBlockMsgPipe          pipe.Pipe
+	eventAliasOutputPipe       pipe.Pipe
+	eventStateCandidateMsgPipe pipe.Pipe
+	eventTimerMsgPipe          pipe.Pipe
+	stateManagerMetrics        metrics.StateManagerMetrics
+	wal                        chain.WAL
 }
+
+var _ chain.StateManager = &stateManager{}
 
 const (
 	numberOfNodesToRequestBlockFromConst = 5
 	maxBlocksToCommitConst               = 10000 // 10k
+	maxMsgBuffer                         = 1000
+
+	peerMsgTypeGetBlock = iota
+	peerMsgTypeBlock
 )
 
-func New(store kvstore.KVStore, c chain.ChainCore, peers peering.PeerDomainProvider, nodeconn chain.NodeConnection, timersOpt ...StateManagerTimers) chain.StateManager {
+func New(
+	store kvstore.KVStore,
+	c chain.ChainCore,
+	domain *DomainWithFallback,
+	nodeconn chain.ChainNodeConnection,
+	stateManagerMetrics metrics.StateManagerMetrics,
+	wal chain.WAL,
+	timersOpt ...StateManagerTimers,
+) chain.StateManager {
 	var timers StateManagerTimers
 	if len(timersOpt) > 0 {
 		timers = timersOpt[0]
 	} else {
 		timers = NewStateManagerTimers()
 	}
+	log := c.Log().Named("sm")
 	ret := &stateManager{
-		ready:                    ready.New(fmt.Sprintf("state manager %s", c.ID().Base58()[:6]+"..")),
-		store:                    store,
-		chain:                    c,
-		nodeConn:                 nodeconn,
-		peers:                    peers,
-		syncingBlocks:            newSyncingBlocks(c.Log(), timers.GetBlockRetry),
-		timers:                   timers,
-		log:                      c.Log().Named("s"),
-		pullStateRetryTime:       time.Now(),
-		eventGetBlockMsgCh:       make(chan *messages.GetBlockMsg),
-		eventBlockMsgCh:          make(chan *messages.BlockMsg),
-		eventStateOutputMsgCh:    make(chan *messages.StateMsg),
-		eventOutputMsgCh:         make(chan ledgerstate.Output),
-		eventStateCandidateMsgCh: make(chan *messages.StateCandidateMsg),
-		eventTimerMsgCh:          make(chan messages.TimerTick),
-		closeCh:                  make(chan bool),
+		ready:                      ready.New(fmt.Sprintf("state manager %s", c.ID().String()[:6]+"..")),
+		store:                      store,
+		chain:                      c,
+		nodeConn:                   nodeconn,
+		domain:                     domain,
+		syncingBlocks:              newSyncingBlocks(log, wal),
+		timers:                     timers,
+		log:                        log,
+		pullStateRetryTime:         time.Now(),
+		eventGetBlockMsgPipe:       pipe.NewLimitInfinitePipe(maxMsgBuffer),
+		eventBlockMsgPipe:          pipe.NewLimitInfinitePipe(maxMsgBuffer),
+		eventAliasOutputPipe:       pipe.NewLimitInfinitePipe(maxMsgBuffer),
+		eventStateCandidateMsgPipe: pipe.NewLimitInfinitePipe(maxMsgBuffer),
+		eventTimerMsgPipe:          pipe.NewLimitInfinitePipe(1),
+		stateManagerMetrics:        stateManagerMetrics,
+		wal:                        wal,
 	}
+	ret.receivePeerMessagesAttachID = ret.domain.Attach(peering.PeerMessageReceiverStateManager, ret.receiveChainPeerMessages)
 	go ret.initLoadState()
 
 	return ret
 }
 
+func (sm *stateManager) receiveChainPeerMessages(peerMsg *peering.PeerMessageIn) {
+	switch peerMsg.MsgType {
+	case peerMsgTypeGetBlock:
+		msg, err := messages.NewGetBlockMsg(peerMsg.MsgData)
+		if err != nil {
+			sm.log.Error(err)
+			return
+		}
+		sm.EnqueueGetBlockMsg(&messages.GetBlockMsgIn{
+			GetBlockMsg:  *msg,
+			SenderPubKey: peerMsg.SenderPubKey,
+		})
+	case peerMsgTypeBlock:
+		msg, err := messages.NewBlockMsg(peerMsg.MsgData)
+		if err != nil {
+			sm.log.Error(err)
+			return
+		}
+		sm.EnqueueBlockMsg(&messages.BlockMsgIn{
+			BlockMsg:     *msg,
+			SenderPubKey: peerMsg.SenderPubKey,
+		})
+	default:
+		sm.log.Warnf("Wrong type of state manager message: %v, ignoring it", peerMsg.MsgType)
+	}
+}
+
+func (sm *stateManager) SetChainPeers(peers []*cryptolib.PublicKey) {
+	sm.domain.SetMainPeers(peers)
+}
+
 func (sm *stateManager) Close() {
-	close(sm.closeCh)
+	sm.domain.Detach(sm.receivePeerMessagesAttachID)
+	sm.domain.Close()
+
+	sm.eventGetBlockMsgPipe.Close()
+	sm.eventBlockMsgPipe.Close()
+	sm.eventAliasOutputPipe.Close()
+	sm.eventStateCandidateMsgPipe.Close()
+	sm.eventTimerMsgPipe.Close()
 }
 
 // initial loading of the solid state
 func (sm *stateManager) initLoadState() {
 	solidState, stateExists, err := state.LoadSolidState(sm.store, sm.chain.ID())
 	if err != nil {
-		go sm.chain.ReceiveMessage(messages.DismissChainMsg{
-			Reason: fmt.Sprintf("StateManager.initLoadState: %v", err),
-		})
+		sm.chain.EnqueueDismissChain(fmt.Sprintf("StateManager.initLoadState: %v", err))
 		return
 	}
 	if stateExists {
 		sm.solidState = solidState
 		sm.chain.GlobalStateSync().SetSolidIndex(solidState.BlockIndex())
-		sm.log.Infof("SOLID STATE has been loaded. Block index: #%d, State hash: %s",
-			solidState.BlockIndex(), solidState.StateCommitment().String())
+		sm.log.Infof("SOLID STATE has been loaded. Block index: #%d, State commitment: %s",
+			solidState.BlockIndex(), trie.RootCommitment(solidState.TrieNodeStore()))
 	} else if err := sm.createOriginState(); err != nil {
 		// create origin state in DB
-		go sm.chain.ReceiveMessage(messages.DismissChainMsg{
-			Reason: fmt.Sprintf("StateManager.initLoadState. Failed to create origin state: %v", err),
-		})
+		sm.chain.EnqueueDismissChain(fmt.Sprintf("StateManager.initLoadState. Failed to create origin state: %v", err))
 		return
 	}
+	sm.setRawBlocksOptions()
 	sm.recvLoop() // Check to process external events.
 }
 
@@ -117,10 +174,7 @@ func (sm *stateManager) createOriginState() error {
 	sm.chain.GlobalStateSync().SetSolidIndex(0)
 
 	if err != nil {
-		go sm.chain.ReceiveMessage(messages.DismissChainMsg{
-			Reason: fmt.Sprintf("StateManager.initLoadState. Failed to create origin state: %v", err),
-		},
-		)
+		sm.chain.EnqueueDismissChain(fmt.Sprintf("StateManager.initLoadState. Failed to create origin state: %v", err))
 		return err
 	}
 	sm.log.Infof("ORIGIN STATE has been created")
@@ -141,33 +195,49 @@ func (sm *stateManager) GetStatusSnapshot() *chain.SyncInfo {
 
 func (sm *stateManager) recvLoop() {
 	sm.ready.SetReady()
+	eventGetBlockMsgCh := sm.eventGetBlockMsgPipe.Out()
+	eventBlockMsgCh := sm.eventBlockMsgPipe.Out()
+	eventAliasOutputCh := sm.eventAliasOutputPipe.Out()
+	eventStateCandidateMsgCh := sm.eventStateCandidateMsgPipe.Out()
+	eventTimerMsgCh := sm.eventTimerMsgPipe.Out()
 	for {
 		select {
-		case msg, ok := <-sm.eventGetBlockMsgCh:
+		case msg, ok := <-eventGetBlockMsgCh:
 			if ok {
-				sm.eventGetBlockMsg(msg)
+				sm.handleGetBlockMsg(msg.(*messages.GetBlockMsgIn))
+			} else {
+				eventGetBlockMsgCh = nil
 			}
-		case msg, ok := <-sm.eventBlockMsgCh:
+		case msg, ok := <-eventBlockMsgCh:
 			if ok {
-				sm.eventBlockMsg(msg)
+				sm.handleBlockMsg(msg.(*messages.BlockMsgIn))
+			} else {
+				eventBlockMsgCh = nil
 			}
-		case msg, ok := <-sm.eventStateOutputMsgCh:
+		case msg, ok := <-eventAliasOutputCh:
 			if ok {
-				sm.eventStateMsg(msg)
+				sm.handleAliasOutput(msg.(*iscp.AliasOutputWithID))
+			} else {
+				eventAliasOutputCh = nil
 			}
-		case msg, ok := <-sm.eventOutputMsgCh:
+		case msg, ok := <-eventStateCandidateMsgCh:
 			if ok {
-				sm.eventOutputMsg(msg)
+				sm.handleStateCandidateMsg(msg.(*messages.StateCandidateMsg))
+			} else {
+				eventStateCandidateMsgCh = nil
 			}
-		case msg, ok := <-sm.eventStateCandidateMsgCh:
+		case _, ok := <-eventTimerMsgCh:
 			if ok {
-				sm.eventStateCandidateMsg(msg)
+				sm.handleTimerMsg()
+			} else {
+				eventTimerMsgCh = nil
 			}
-		case _, ok := <-sm.eventTimerMsgCh:
-			if ok {
-				sm.eventTimerMsg()
-			}
-		case <-sm.closeCh:
+		}
+		if eventGetBlockMsgCh == nil &&
+			eventBlockMsgCh == nil &&
+			eventAliasOutputCh == nil &&
+			eventStateCandidateMsgCh == nil &&
+			eventTimerMsgCh == nil {
 			return
 		}
 	}

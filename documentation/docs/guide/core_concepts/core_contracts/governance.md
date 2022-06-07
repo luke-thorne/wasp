@@ -13,11 +13,12 @@ keywords:
 - add
 - chain info
 - fee info
+- reference
 --- 
 
 # The `governance` Contract
 
-The `governance` contract is one of the [core contracts](overview.md) on each ISCP
+The `governance` contract is one of the [core contracts](overview.md) on each IOTA Smart Contracts
 chain.
 
 The `governance` contract provides the following functionalities:
@@ -40,7 +41,7 @@ Adds an address to the list of identities that constitute the state controller, 
 
 ### removeAllowedStateControllerAddress
 
-Removes an address to the list of identities that constitute the state controller, this change will only become effective once `rotateStateController` is called
+Removes an address from the list of identities that constitute the state controller, this change will only become effective once `rotateStateController` is called
 
 ### delegateChainOwnership
 
