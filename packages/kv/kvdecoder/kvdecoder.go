@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/iotaledger/hive.go/serializer/v2"
-
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/wasp/packages/hashing"
 	"github.com/iotaledger/wasp/packages/iscp"
@@ -20,7 +19,9 @@ type kvdecoder struct {
 	log iscp.LogInterface
 }
 
-func New(kvReader kv.KVStoreReader, log ...iscp.LogInterface) *kvdecoder {
+var _ iscp.KVDecoder = &kvdecoder{}
+
+func New(kvReader kv.KVStoreReader, log ...iscp.LogInterface) *kvdecoder { //nolint:revive
 	var l iscp.LogInterface
 	if len(log) > 0 {
 		l = log[0]
@@ -266,6 +267,23 @@ func (p *kvdecoder) GetBigInt(key kv.Key, def ...*big.Int) (*big.Int, error) {
 
 func (p *kvdecoder) MustGetBigInt(key kv.Key, def ...*big.Int) *big.Int {
 	ret, err := p.GetBigInt(key, def...)
+	p.check(err)
+	return ret
+}
+
+func (p *kvdecoder) GetNativeTokenID(key kv.Key, def ...iotago.NativeTokenID) (iotago.NativeTokenID, error) {
+	v := p.MustGet(key)
+	if v == nil {
+		if len(def) != 0 {
+			return def[0], nil
+		}
+		return iotago.NativeTokenID{}, fmt.Errorf("GetNativeTokenID: mandatory parameter %q does not exist", key)
+	}
+	return codec.DecodeNativeTokenID(v)
+}
+
+func (p *kvdecoder) MustGetNativeTokenID(key kv.Key, def ...iotago.NativeTokenID) iotago.NativeTokenID {
+	ret, err := p.GetNativeTokenID(key, def...)
 	p.check(err)
 	return ret
 }

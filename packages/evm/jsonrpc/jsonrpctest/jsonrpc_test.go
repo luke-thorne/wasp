@@ -5,7 +5,6 @@ package jsonrpctest
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"math/big"
 	"strings"
 	"testing"
@@ -14,19 +13,16 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/iotaledger/wasp/packages/evm/evmtest"
 	"github.com/iotaledger/wasp/packages/evm/evmtypes"
+	"github.com/iotaledger/wasp/packages/evm/evmutil"
 	"github.com/iotaledger/wasp/packages/evm/jsonrpc"
-	"github.com/iotaledger/wasp/packages/iscp"
-	"github.com/iotaledger/wasp/packages/kv/dict"
 	"github.com/iotaledger/wasp/packages/solo"
 	"github.com/iotaledger/wasp/packages/vm/core/evm"
-	"github.com/iotaledger/wasp/packages/vm/core/root"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,24 +32,12 @@ type soloTestEnv struct {
 	soloChain *solo.Chain
 }
 
-var faucet *ecdsa.PrivateKey
-var faucetAddress common.Address
-var faucetSupply = big.NewInt(42)
-
-func init() {
-	faucet, faucetAddress = solo.NewEthereumAccount()
-}
-
 func newSoloTestEnv(t *testing.T) *soloTestEnv {
 	evmtest.InitGoEthLogger(t)
 
 	s := solo.New(t, &solo.InitOptions{AutoAdjustDustDeposit: true, Debug: true, PrintStackTrace: true})
 	chainOwner, _ := s.NewKeyPairWithFunds()
-	chain := s.NewChain(chainOwner, "iscpchain", dict.Dict{
-		root.ParamEVM(evm.FieldGenesisAlloc): evmtypes.EncodeGenesisAlloc(core.GenesisAlloc{
-			faucetAddress: {Balance: faucetSupply},
-		}),
-	})
+	chain := s.NewChain(chainOwner, "iscpchain")
 
 	accounts := jsonrpc.NewAccountManager(nil)
 	rpcsrv := jsonrpc.NewServer(chain.EVM(), accounts)
@@ -80,7 +64,8 @@ func TestRPCGetBalance(t *testing.T) {
 	env := newSoloTestEnv(t)
 	_, emptyAddress := solo.NewEthereumAccount()
 	require.Zero(t, env.Balance(emptyAddress).Uint64())
-	require.EqualValues(t, faucetSupply.Uint64(), env.Balance(faucetAddress).Uint64())
+	_, nonEmptyAddress := env.soloChain.NewEthereumAccountWithL2Funds()
+	require.NotZero(t, env.Balance(nonEmptyAddress).Uint64())
 }
 
 func TestRPCGetCode(t *testing.T) {
@@ -118,8 +103,9 @@ func TestRPCBlockNumber(t *testing.T) {
 	env := newSoloTestEnv(t)
 	require.EqualValues(t, 0, env.BlockNumber())
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
+	require.EqualValues(t, 1, env.BlockNumber()) // EVM block number is incremented along with ISC block index
 	env.deployStorageContract(creator, 42)
-	require.EqualValues(t, 1, env.BlockNumber())
+	require.EqualValues(t, 2, env.BlockNumber())
 }
 
 func TestRPCGetTransactionCount(t *testing.T) {
@@ -152,9 +138,9 @@ func TestRPCGetTransactionByHash(t *testing.T) {
 	require.Nil(t, env.TransactionByHash(common.Hash{}))
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
 	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(big.NewInt(1))
-	tx := env.TransactionByHash(block1.Transactions()[0].Hash())
-	require.Equal(t, block1.Transactions()[0].Hash(), tx.Hash())
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	tx := env.TransactionByHash(block.Transactions()[0].Hash())
+	require.Equal(t, block.Transactions()[0].Hash(), tx.Hash())
 }
 
 func TestRPCGetTransactionByBlockHashAndIndex(t *testing.T) {
@@ -162,9 +148,9 @@ func TestRPCGetTransactionByBlockHashAndIndex(t *testing.T) {
 	require.Nil(t, env.TransactionByBlockHashAndIndex(common.Hash{}, 0))
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
 	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(big.NewInt(1))
-	tx := env.TransactionByBlockHashAndIndex(block1.Hash(), 0)
-	require.Equal(t, block1.Transactions()[0].Hash(), tx.Hash())
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	tx := env.TransactionByBlockHashAndIndex(block.Hash(), 0)
+	require.Equal(t, block.Transactions()[0].Hash(), tx.Hash())
 }
 
 func TestRPCGetUncleByBlockHashAndIndex(t *testing.T) {
@@ -172,8 +158,8 @@ func TestRPCGetUncleByBlockHashAndIndex(t *testing.T) {
 	require.Nil(t, env.UncleByBlockHashAndIndex(common.Hash{}, 0))
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
 	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(big.NewInt(1))
-	require.Nil(t, env.UncleByBlockHashAndIndex(block1.Hash(), 0))
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	require.Nil(t, env.UncleByBlockHashAndIndex(block.Hash(), 0))
 }
 
 func TestRPCGetTransactionByBlockNumberAndIndex(t *testing.T) {
@@ -181,9 +167,9 @@ func TestRPCGetTransactionByBlockNumberAndIndex(t *testing.T) {
 	require.Nil(t, env.TransactionByBlockNumberAndIndex(big.NewInt(3), 0))
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
 	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(big.NewInt(1))
-	tx := env.TransactionByBlockNumberAndIndex(block1.Number(), 0)
-	require.EqualValues(t, block1.Hash(), *tx.BlockHash)
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	tx := env.TransactionByBlockNumberAndIndex(block.Number(), 0)
+	require.EqualValues(t, block.Hash(), *tx.BlockHash)
 	require.EqualValues(t, 0, *tx.TransactionIndex)
 }
 
@@ -192,17 +178,17 @@ func TestRPCGetUncleByBlockNumberAndIndex(t *testing.T) {
 	require.Nil(t, env.UncleByBlockNumberAndIndex(big.NewInt(3), 0))
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
 	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(big.NewInt(1))
-	require.Nil(t, env.UncleByBlockNumberAndIndex(block1.Number(), 0))
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	require.Nil(t, env.UncleByBlockNumberAndIndex(block.Number(), 0))
 }
 
 func TestRPCGetTransactionCountByHash(t *testing.T) {
 	env := newSoloTestEnv(t)
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
 	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(big.NewInt(1))
-	require.Positive(t, len(block1.Transactions()))
-	require.EqualValues(t, len(block1.Transactions()), env.BlockTransactionCountByHash(block1.Hash()))
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	require.Positive(t, len(block.Transactions()))
+	require.EqualValues(t, len(block.Transactions()), env.BlockTransactionCountByHash(block.Hash()))
 	require.EqualValues(t, 0, env.BlockTransactionCountByHash(common.Hash{}))
 }
 
@@ -210,9 +196,9 @@ func TestRPCGetUncleCountByBlockHash(t *testing.T) {
 	env := newSoloTestEnv(t)
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
 	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(big.NewInt(1))
-	require.Zero(t, len(block1.Uncles()))
-	require.EqualValues(t, len(block1.Uncles()), env.UncleCountByBlockHash(block1.Hash()))
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	require.Zero(t, len(block.Uncles()))
+	require.EqualValues(t, len(block.Uncles()), env.UncleCountByBlockHash(block.Hash()))
 	require.EqualValues(t, 0, env.UncleCountByBlockHash(common.Hash{}))
 }
 
@@ -220,18 +206,18 @@ func TestRPCGetTransactionCountByNumber(t *testing.T) {
 	env := newSoloTestEnv(t)
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
 	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(nil)
-	require.Positive(t, len(block1.Transactions()))
-	require.EqualValues(t, len(block1.Transactions()), env.BlockTransactionCountByNumber())
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	require.Positive(t, len(block.Transactions()))
+	require.EqualValues(t, len(block.Transactions()), env.BlockTransactionCountByNumber())
 }
 
 func TestRPCGetUncleCountByBlockNumber(t *testing.T) {
 	env := newSoloTestEnv(t)
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
 	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(big.NewInt(1))
-	require.Zero(t, len(block1.Uncles()))
-	require.EqualValues(t, len(block1.Uncles()), env.UncleCountByBlockNumber(big.NewInt(1)))
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	require.Zero(t, len(block.Uncles()))
+	require.EqualValues(t, len(block.Uncles()), env.UncleCountByBlockNumber(big.NewInt(1)))
 }
 
 func TestRPCAccounts(t *testing.T) {
@@ -257,80 +243,50 @@ const additionalGasBurnedByVM = 10
 func TestRPCSignTransaction(t *testing.T) {
 	_, to := solo.NewEthereumAccount()
 	env := newSoloTestEnv(t)
-	env.accountManager.Add(faucet)
-	env.soloChain.GetL2FundsFromFaucet(iscp.NewEthereumAddressAgentID(faucetAddress))
+	ethKey, ethAddr := env.soloChain.NewEthereumAccountWithL2Funds()
+	env.accountManager.Add(ethKey)
 
 	gas := hexutil.Uint64(params.TxGas) + additionalGasBurnedByVM
-	nonce := hexutil.Uint64(env.NonceAt(faucetAddress))
+	nonce := hexutil.Uint64(env.NonceAt(ethAddr))
 	signed := env.SignTransaction(&jsonrpc.SendTxArgs{
-		From:     faucetAddress,
+		From:     ethAddr,
 		To:       &to,
 		Gas:      &gas,
 		GasPrice: (*hexutil.Big)(evm.GasPrice),
-		Value:    (*hexutil.Big)(faucetSupply),
+		Value:    (*hexutil.Big)(big.NewInt(42)),
 		Nonce:    &nonce,
 	})
 	require.NotEmpty(t, signed)
 
-	// test that the signed tx can be sent
-	err := env.RawClient.Call(nil, "eth_sendRawTransaction", hexutil.Encode(signed))
-	require.NoError(t, err)
+	// assert that the tx is correctly signed
+	{
+		decodedTx, err := evmtypes.DecodeTransaction(signed)
+		require.NoError(t, err)
+		sender, err := evmutil.GetSender(decodedTx)
+		require.NoError(t, err)
+		require.Equal(t, ethAddr, sender)
+	}
 }
 
 func TestRPCSendTransaction(t *testing.T) {
-	_, to := solo.NewEthereumAccount()
 	env := newSoloTestEnv(t)
-	env.accountManager.Add(faucet)
-	env.soloChain.GetL2FundsFromFaucet(iscp.NewEthereumAddressAgentID(faucetAddress))
+	ethKey, ethAddr := env.soloChain.NewEthereumAccountWithL2Funds()
+	env.accountManager.Add(ethKey)
 
-	gas := hexutil.Uint64(params.TxGas) + additionalGasBurnedByVM
-	nonce := hexutil.Uint64(env.NonceAt(faucetAddress))
+	gas := hexutil.Uint64(100_000)
+	nonce := hexutil.Uint64(env.NonceAt(ethAddr))
+	data := common.Hex2Bytes("600180600b6000396000f3") // some contract bytecode
 	txHash := env.MustSendTransaction(&jsonrpc.SendTxArgs{
-		From:     faucetAddress,
-		To:       &to,
+		From:     ethAddr,
 		Gas:      &gas,
 		GasPrice: (*hexutil.Big)(evm.GasPrice),
-		Value:    (*hexutil.Big)(faucetSupply),
 		Nonce:    &nonce,
+		Data:     (*hexutil.Bytes)(&data),
 	})
 	require.NotEqualValues(t, common.Hash{}, txHash)
 }
 
-func TestRPCGetTxReceiptRegularTx(t *testing.T) {
-	_, to := solo.NewEthereumAccount()
-	env := newSoloTestEnv(t)
-	env.accountManager.Add(faucet)
-	env.soloChain.GetL2FundsFromFaucet(iscp.NewEthereumAddressAgentID(faucetAddress))
-
-	gas := hexutil.Uint64(params.TxGas) + additionalGasBurnedByVM
-	nonce := hexutil.Uint64(env.NonceAt(faucetAddress))
-	txHash := env.MustSendTransaction(&jsonrpc.SendTxArgs{
-		From:     faucetAddress,
-		To:       &to,
-		Gas:      &gas,
-		GasPrice: (*hexutil.Big)(evm.GasPrice),
-		Value:    (*hexutil.Big)(faucetSupply),
-		Nonce:    &nonce,
-	})
-
-	receipt := env.MustTxReceipt(txHash)
-
-	require.EqualValues(t, types.LegacyTxType, receipt.Type)
-	require.EqualValues(t, types.ReceiptStatusSuccessful, receipt.Status)
-	require.NotZero(t, receipt.CumulativeGasUsed)
-	require.EqualValues(t, types.Bloom{}, receipt.Bloom)
-	require.EqualValues(t, 0, len(receipt.Logs))
-
-	require.EqualValues(t, txHash, receipt.TxHash)
-	require.EqualValues(t, common.Address{}, receipt.ContractAddress)
-	require.NotZero(t, receipt.GasUsed)
-
-	require.EqualValues(t, big.NewInt(1), receipt.BlockNumber)
-	require.EqualValues(t, env.BlockByNumber(big.NewInt(1)).Hash(), receipt.BlockHash)
-	require.EqualValues(t, 0, receipt.TransactionIndex)
-}
-
-func TestRPCGetTxReceiptContractCreation(t *testing.T) {
+func TestRPCGetTxReceipt(t *testing.T) {
 	env := newSoloTestEnv(t)
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
 
@@ -348,8 +304,8 @@ func TestRPCGetTxReceiptContractCreation(t *testing.T) {
 	require.EqualValues(t, contractAddress, receipt.ContractAddress)
 	require.NotZero(t, receipt.GasUsed)
 
-	require.EqualValues(t, big.NewInt(1), receipt.BlockNumber)
-	require.EqualValues(t, env.BlockByNumber(big.NewInt(1)).Hash(), receipt.BlockHash)
+	require.EqualValues(t, big.NewInt(2), receipt.BlockNumber)
+	require.EqualValues(t, env.BlockByNumber(big.NewInt(2)).Hash(), receipt.BlockHash)
 	require.EqualValues(t, 0, receipt.TransactionIndex)
 }
 

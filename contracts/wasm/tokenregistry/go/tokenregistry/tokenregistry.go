@@ -35,13 +35,21 @@ func funcMintSupply(ctx wasmlib.ScFuncContext, f *MintSupplyContext) {
 }
 
 func funcTransferOwnership(ctx wasmlib.ScFuncContext, f *TransferOwnershipContext) {
-	// TODO
+	// TODO implement
 }
 
 func funcUpdateMetadata(ctx wasmlib.ScFuncContext, f *UpdateMetadataContext) {
-	// TODO
+	// TODO implement
 }
 
 func viewGetInfo(ctx wasmlib.ScViewContext, f *GetInfoContext) {
-	// TODO
+	// TODO implement
+}
+
+func funcInit(ctx wasmlib.ScFuncContext, f *InitContext) {
+	if f.Params.Owner().Exists() {
+		f.State.Owner().SetValue(f.Params.Owner().Value())
+		return
+	}
+	f.State.Owner().SetValue(ctx.RequestSender())
 }

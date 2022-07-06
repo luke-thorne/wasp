@@ -5,6 +5,7 @@ package testwasmlib
 
 import (
 	"bytes"
+	"math"
 
 	"github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib"
 	"github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib/coreblocklog"
@@ -18,7 +19,10 @@ func funcParamTypes(ctx wasmlib.ScFuncContext, f *ParamTypesContext) {
 	if f.Params.AgentID().Exists() {
 		ctx.Require(f.Params.AgentID().Value() == ctx.AccountID(), "mismatch: AgentID")
 	}
-	// TODO big.Int
+	if f.Params.BigInt().Exists() {
+		bigIntData := wasmtypes.BigIntFromString("100000000000000000000")
+		ctx.Require(f.Params.BigInt().Value().Cmp(bigIntData) == 0, "mismatch: BigInt")
+	}
 	if f.Params.Bool().Exists() {
 		ctx.Require(f.Params.Bool().Value(), "mismatch: Bool")
 	}
@@ -447,4 +451,210 @@ func viewBigIntShr(ctx wasmlib.ScViewContext, f *BigIntShrContext) {
 	shift := f.Params.Shift().Value()
 	res := lhs.Shr(shift)
 	f.Results.Res().SetValue(res)
+}
+
+func viewCheckAgentID(ctx wasmlib.ScViewContext, f *CheckAgentIDContext) {
+	scAgentID := f.Params.ScAgentID().Value()
+	agentBytes := f.Params.AgentBytes().Value()
+	agentString := f.Params.AgentString().Value()
+	ctx.Require(scAgentID == wasmtypes.AgentIDFromBytes(wasmtypes.AgentIDToBytes(scAgentID)), "bytes conversion failed")
+	ctx.Require(scAgentID == wasmtypes.AgentIDFromString(wasmtypes.AgentIDToString(scAgentID)), "string conversion failed")
+	ctx.Require(string(scAgentID.Bytes()) == string(agentBytes), "bytes mismatch")
+	ctx.Require(scAgentID.String() == agentString, "string mismatch")
+}
+
+func viewCheckAddress(ctx wasmlib.ScViewContext, f *CheckAddressContext) {
+	address := f.Params.ScAddress().Value()
+	addressBytes := f.Params.AddressBytes().Value()
+	addressString := f.Params.AddressString().Value()
+	ctx.Require(address == wasmtypes.AddressFromBytes(wasmtypes.AddressToBytes(address)), "bytes conversion failed")
+	ctx.Require(address == wasmtypes.AddressFromString(wasmtypes.AddressToString(address)), "string conversion failed")
+	ctx.Require(string(address.Bytes()) == string(addressBytes), "bytes mismatch")
+	ctx.Require(address.String() == addressString, "string mismatch")
+}
+
+func viewCheckEthAddressAndAgentID(ctx wasmlib.ScViewContext, f *CheckEthAddressAndAgentIDContext) {
+	addressTxt := f.Params.EthAddress().Value()
+	scAddressEth := wasmtypes.AddressFromString(addressTxt)
+	ctx.Require(scAddressEth == wasmtypes.AddressFromBytes(wasmtypes.AddressToBytes(scAddressEth)), "eth address bytes conversion failed")
+	ctx.Require(scAddressEth == wasmtypes.AddressFromString(wasmtypes.AddressToString(scAddressEth)), "eth address string conversion failed")
+	scAgentIDEth := wasmtypes.NewScAgentIDFromAddress(scAddressEth)
+	ctx.Require(scAgentIDEth == wasmtypes.AgentIDFromBytes(wasmtypes.AgentIDToBytes(scAgentIDEth)), "eth agentID bytes conversion failed")
+	ctx.Require(scAgentIDEth == wasmtypes.AgentIDFromString(wasmtypes.AgentIDToString(scAgentIDEth)), "eth agentID string conversion failed")
+}
+
+func viewCheckHash(ctx wasmlib.ScViewContext, f *CheckHashContext) {
+	scHash := f.Params.ScHash().Value()
+	hashBytes := f.Params.HashBytes().Value()
+	hashString := f.Params.HashString().Value()
+	ctx.Require(scHash == wasmtypes.HashFromBytes(wasmtypes.HashToBytes(scHash)), "bytes conversion failed")
+	ctx.Require(scHash == wasmtypes.HashFromString(wasmtypes.HashToString(scHash)), "string conversion failed")
+	ctx.Require(string(scHash.Bytes()) == string(hashBytes), "bytes mismatch")
+	ctx.Require(scHash.String() == hashString, "string mismatch")
+}
+
+func viewCheckNftID(ctx wasmlib.ScViewContext, f *CheckNftIDContext) {
+	scNftID := f.Params.ScNftID().Value()
+	nftIDBytes := f.Params.NftIDBytes().Value()
+	nftIDString := f.Params.NftIDString().Value()
+
+	ctx.Require(scNftID == wasmtypes.NftIDFromString(wasmtypes.NftIDToString(scNftID)), "bytes conversion failed")
+	ctx.Require(scNftID == wasmtypes.NftIDFromBytes(wasmtypes.NftIDToBytes(scNftID)), "string conversion failed")
+	ctx.Require(string(scNftID.Bytes()) == string(nftIDBytes), "bytes mismatch")
+	ctx.Require(scNftID.String() == nftIDString, "string mismatch")
+}
+
+func viewCheckRequestID(ctx wasmlib.ScViewContext, f *CheckRequestIDContext) {
+	scRequestID := f.Params.ScRequestID().Value()
+	requestIDBytes := f.Params.RequestIDBytes().Value()
+	requestIDString := f.Params.RequestIDString().Value()
+
+	ctx.Require(scRequestID == wasmtypes.RequestIDFromString(wasmtypes.RequestIDToString(scRequestID)), "bytes conversion failed")
+	ctx.Require(scRequestID == wasmtypes.RequestIDFromBytes(wasmtypes.RequestIDToBytes(scRequestID)), "string conversion failed")
+	ctx.Require(string(scRequestID.Bytes()) == string(requestIDBytes), "bytes mismatch")
+	ctx.Require(scRequestID.String() == requestIDString, "string mismatch")
+}
+
+func viewCheckTokenID(ctx wasmlib.ScViewContext, f *CheckTokenIDContext) {
+	scTokenID := f.Params.ScTokenID().Value()
+	tokenIDBytes := f.Params.TokenIDBytes().Value()
+	tokenIDString := f.Params.TokenIDString().Value()
+
+	ctx.Require(scTokenID == wasmtypes.TokenIDFromString(wasmtypes.TokenIDToString(scTokenID)), "bytes conversion failed")
+	ctx.Require(scTokenID == wasmtypes.TokenIDFromBytes(wasmtypes.TokenIDToBytes(scTokenID)), "string conversion failed")
+	ctx.Require(string(scTokenID.Bytes()) == string(tokenIDBytes), "bytes mismatch")
+	ctx.Require(scTokenID.String() == tokenIDString, "string mismatch")
+}
+
+func viewCheckBigInt(ctx wasmlib.ScViewContext, f *CheckBigIntContext) {
+	scBigInt := f.Params.ScBigInt().Value()
+	bigIntBytes := f.Params.BigIntBytes().Value()
+	bigIntString := f.Params.BigIntString().Value()
+
+	ctx.Require(scBigInt.Cmp(wasmtypes.BigIntFromString(wasmtypes.BigIntToString(scBigInt))) == 0, "bytes conversion failed")
+	ctx.Require(scBigInt.Cmp(wasmtypes.BigIntFromBytes(wasmtypes.BigIntToBytes(scBigInt))) == 0, "string conversion failed")
+	ctx.Require(string(scBigInt.Bytes()) == string(bigIntBytes), "bytes mismatch")
+	ctx.Require(scBigInt.String() == bigIntString, "string mismatch")
+}
+
+//nolint:funlen
+func viewCheckIntAndUint(ctx wasmlib.ScViewContext, f *CheckIntAndUintContext) {
+	goInt8 := int8(math.MaxInt8)
+	ctx.Require(goInt8 == wasmtypes.Int8FromBytes(wasmtypes.Int8ToBytes(goInt8)), "bytes conversion failed")
+	ctx.Require(goInt8 == wasmtypes.Int8FromString(wasmtypes.Int8ToString(goInt8)), "string conversion failed")
+	goInt8 = math.MinInt8
+	ctx.Require(goInt8 == wasmtypes.Int8FromBytes(wasmtypes.Int8ToBytes(goInt8)), "bytes conversion failed")
+	ctx.Require(goInt8 == wasmtypes.Int8FromString(wasmtypes.Int8ToString(goInt8)), "string conversion failed")
+	goInt8 = 1
+	ctx.Require(goInt8 == wasmtypes.Int8FromBytes(wasmtypes.Int8ToBytes(goInt8)), "bytes conversion failed")
+	ctx.Require(goInt8 == wasmtypes.Int8FromString(wasmtypes.Int8ToString(goInt8)), "string conversion failed")
+	goInt8 = 0
+	ctx.Require(goInt8 == wasmtypes.Int8FromBytes(wasmtypes.Int8ToBytes(goInt8)), "bytes conversion failed")
+	ctx.Require(goInt8 == wasmtypes.Int8FromString(wasmtypes.Int8ToString(goInt8)), "string conversion failed")
+	goInt8 = -1
+	ctx.Require(goInt8 == wasmtypes.Int8FromBytes(wasmtypes.Int8ToBytes(goInt8)), "bytes conversion failed")
+	ctx.Require(goInt8 == wasmtypes.Int8FromString(wasmtypes.Int8ToString(goInt8)), "string conversion failed")
+	goUint8 := uint8(0)
+	ctx.Require(goUint8 == wasmtypes.Uint8FromBytes(wasmtypes.Uint8ToBytes(goUint8)), "bytes conversion failed")
+	ctx.Require(goUint8 == wasmtypes.Uint8FromString(wasmtypes.Uint8ToString(goUint8)), "string conversion failed")
+	goUint8 = math.MaxUint8
+	ctx.Require(goUint8 == wasmtypes.Uint8FromBytes(wasmtypes.Uint8ToBytes(goUint8)), "bytes conversion failed")
+	ctx.Require(goUint8 == wasmtypes.Uint8FromString(wasmtypes.Uint8ToString(goUint8)), "string conversion failed")
+
+	goInt16 := int16(math.MaxInt16)
+	ctx.Require(goInt16 == wasmtypes.Int16FromBytes(wasmtypes.Int16ToBytes(goInt16)), "bytes conversion failed")
+	ctx.Require(goInt16 == wasmtypes.Int16FromString(wasmtypes.Int16ToString(goInt16)), "string conversion failed")
+	goInt16 = math.MinInt16
+	ctx.Require(goInt16 == wasmtypes.Int16FromBytes(wasmtypes.Int16ToBytes(goInt16)), "bytes conversion failed")
+	ctx.Require(goInt16 == wasmtypes.Int16FromString(wasmtypes.Int16ToString(goInt16)), "string conversion failed")
+	goInt16 = 1
+	ctx.Require(goInt16 == wasmtypes.Int16FromBytes(wasmtypes.Int16ToBytes(goInt16)), "bytes conversion failed")
+	ctx.Require(goInt16 == wasmtypes.Int16FromString(wasmtypes.Int16ToString(goInt16)), "string conversion failed")
+	goInt16 = 0
+	ctx.Require(goInt16 == wasmtypes.Int16FromBytes(wasmtypes.Int16ToBytes(goInt16)), "bytes conversion failed")
+	ctx.Require(goInt16 == wasmtypes.Int16FromString(wasmtypes.Int16ToString(goInt16)), "string conversion failed")
+	goInt16 = -1
+	ctx.Require(goInt16 == wasmtypes.Int16FromBytes(wasmtypes.Int16ToBytes(goInt16)), "bytes conversion failed")
+	ctx.Require(goInt16 == wasmtypes.Int16FromString(wasmtypes.Int16ToString(goInt16)), "string conversion failed")
+	goUint16 := uint16(0)
+	ctx.Require(goUint16 == wasmtypes.Uint16FromBytes(wasmtypes.Uint16ToBytes(goUint16)), "bytes conversion failed")
+	ctx.Require(goUint16 == wasmtypes.Uint16FromString(wasmtypes.Uint16ToString(goUint16)), "string conversion failed")
+	goUint16 = math.MaxUint16
+	ctx.Require(goUint16 == wasmtypes.Uint16FromBytes(wasmtypes.Uint16ToBytes(goUint16)), "bytes conversion failed")
+	ctx.Require(goUint16 == wasmtypes.Uint16FromString(wasmtypes.Uint16ToString(goUint16)), "string conversion failed")
+
+	goInt32 := int32(math.MaxInt32)
+	ctx.Require(goInt32 == wasmtypes.Int32FromBytes(wasmtypes.Int32ToBytes(goInt32)), "bytes conversion failed")
+	ctx.Require(goInt32 == wasmtypes.Int32FromString(wasmtypes.Int32ToString(goInt32)), "string conversion failed")
+	goInt32 = math.MinInt32
+	ctx.Require(goInt32 == wasmtypes.Int32FromBytes(wasmtypes.Int32ToBytes(goInt32)), "bytes conversion failed")
+	ctx.Require(goInt32 == wasmtypes.Int32FromString(wasmtypes.Int32ToString(goInt32)), "string conversion failed")
+	goInt32 = 1
+	ctx.Require(goInt32 == wasmtypes.Int32FromBytes(wasmtypes.Int32ToBytes(goInt32)), "bytes conversion failed")
+	ctx.Require(goInt32 == wasmtypes.Int32FromString(wasmtypes.Int32ToString(goInt32)), "string conversion failed")
+	goInt32 = 0
+	ctx.Require(goInt32 == wasmtypes.Int32FromBytes(wasmtypes.Int32ToBytes(goInt32)), "bytes conversion failed")
+	ctx.Require(goInt32 == wasmtypes.Int32FromString(wasmtypes.Int32ToString(goInt32)), "string conversion failed")
+	goInt32 = -1
+	ctx.Require(goInt32 == wasmtypes.Int32FromBytes(wasmtypes.Int32ToBytes(goInt32)), "bytes conversion failed")
+	ctx.Require(goInt32 == wasmtypes.Int32FromString(wasmtypes.Int32ToString(goInt32)), "string conversion failed")
+	goUint32 := uint32(0)
+	ctx.Require(goUint32 == wasmtypes.Uint32FromBytes(wasmtypes.Uint32ToBytes(goUint32)), "bytes conversion failed")
+	ctx.Require(goUint32 == wasmtypes.Uint32FromString(wasmtypes.Uint32ToString(goUint32)), "string conversion failed")
+	goUint32 = math.MaxUint32
+	ctx.Require(goUint32 == wasmtypes.Uint32FromBytes(wasmtypes.Uint32ToBytes(goUint32)), "bytes conversion failed")
+	ctx.Require(goUint32 == wasmtypes.Uint32FromString(wasmtypes.Uint32ToString(goUint32)), "string conversion failed")
+
+	goInt64 := int64(math.MaxInt64)
+	ctx.Require(goInt64 == wasmtypes.Int64FromBytes(wasmtypes.Int64ToBytes(goInt64)), "bytes conversion failed")
+	ctx.Require(goInt64 == wasmtypes.Int64FromString(wasmtypes.Int64ToString(goInt64)), "string conversion failed")
+	goInt64 = math.MinInt64
+	ctx.Require(goInt64 == wasmtypes.Int64FromBytes(wasmtypes.Int64ToBytes(goInt64)), "bytes conversion failed")
+	ctx.Require(goInt64 == wasmtypes.Int64FromString(wasmtypes.Int64ToString(goInt64)), "string conversion failed")
+	goInt64 = 1
+	ctx.Require(goInt64 == wasmtypes.Int64FromBytes(wasmtypes.Int64ToBytes(goInt64)), "bytes conversion failed")
+	ctx.Require(goInt64 == wasmtypes.Int64FromString(wasmtypes.Int64ToString(goInt64)), "string conversion failed")
+	goInt64 = 0
+	ctx.Require(goInt64 == wasmtypes.Int64FromBytes(wasmtypes.Int64ToBytes(goInt64)), "bytes conversion failed")
+	ctx.Require(goInt64 == wasmtypes.Int64FromString(wasmtypes.Int64ToString(goInt64)), "string conversion failed")
+	goInt64 = -1
+	ctx.Require(goInt64 == wasmtypes.Int64FromBytes(wasmtypes.Int64ToBytes(goInt64)), "bytes conversion failed")
+	ctx.Require(goInt64 == wasmtypes.Int64FromString(wasmtypes.Int64ToString(goInt64)), "string conversion failed")
+	goUint64 := uint64(0)
+	ctx.Require(goUint64 == wasmtypes.Uint64FromBytes(wasmtypes.Uint64ToBytes(goUint64)), "bytes conversion failed")
+	ctx.Require(goUint64 == wasmtypes.Uint64FromString(wasmtypes.Uint64ToString(goUint64)), "string conversion failed")
+	goUint64 = math.MaxUint64
+	ctx.Require(goUint64 == wasmtypes.Uint64FromBytes(wasmtypes.Uint64ToBytes(goUint64)), "bytes conversion failed")
+	ctx.Require(goUint64 == wasmtypes.Uint64FromString(wasmtypes.Uint64ToString(goUint64)), "string conversion failed")
+}
+
+func viewCheckBool(ctx wasmlib.ScViewContext, f *CheckBoolContext) {
+	boolData := true
+	ctx.Require(boolData == wasmtypes.BoolFromBytes(wasmtypes.BoolToBytes(boolData)), "bytes conversion failed")
+	ctx.Require(boolData == wasmtypes.BoolFromString(wasmtypes.BoolToString(boolData)), "string conversion failed")
+	boolData = false
+	ctx.Require(boolData == wasmtypes.BoolFromBytes(wasmtypes.BoolToBytes(boolData)), "bytes conversion failed")
+	ctx.Require(boolData == wasmtypes.BoolFromString(wasmtypes.BoolToString(boolData)), "string conversion failed")
+}
+
+func viewCheckBytes(ctx wasmlib.ScViewContext, f *CheckBytesContext) {
+	byteData := f.Params.Bytes().Value()
+	ctx.Require(bytes.Equal(byteData, wasmtypes.BytesFromBytes(wasmtypes.BytesToBytes(byteData))), "bytes conversion failed")
+	ctx.Require(bytes.Equal(byteData, wasmtypes.BytesFromString(wasmtypes.BytesToString(byteData))), "string conversion failed")
+}
+
+func viewCheckHname(ctx wasmlib.ScViewContext, f *CheckHnameContext) {
+	scHname := f.Params.ScHname().Value()
+	hnameBytes := f.Params.HnameBytes().Value()
+	hnameString := f.Params.HnameString().Value()
+	ctx.Require(scHname == wasmtypes.HnameFromBytes(wasmtypes.HnameToBytes(scHname)), "bytes conversion failed")
+	ctx.Require(scHname == wasmtypes.HnameFromString(wasmtypes.HnameToString(scHname)), "string conversion failed")
+	ctx.Require(bytes.Equal(hnameBytes, wasmtypes.HnameToBytes(scHname)), "bytes conversion failed")
+	ctx.Require(hnameString == wasmtypes.HnameToString(scHname), "string conversion failed")
+}
+
+func viewCheckString(ctx wasmlib.ScViewContext, f *CheckStringContext) {
+	stringData := f.Params.String().Value()
+	ctx.Require(stringData == wasmtypes.StringFromBytes(wasmtypes.StringToBytes(stringData)), "bytes conversion failed")
+	ctx.Require(stringData == wasmtypes.StringToString(wasmtypes.StringFromString(stringData)), "string conversion failed")
 }

@@ -40,6 +40,8 @@ var Processor = evm.Contract.Processor(initialize,
 	evm.FuncGetStorage.WithHandler(getStorage),
 	evm.FuncGetLogs.WithHandler(getLogs),
 	evm.FuncGetChainID.WithHandler(getChainID),
+	evm.FuncOpenBlockContext.WithHandler(openBlockContext),
+	evm.FuncCloseBlockContext.WithHandler(closeBlockContext),
 )
 
 func initialize(ctx iscp.Sandbox) dict.Dict {
@@ -67,6 +69,7 @@ func initialize(ctx iscp.Sandbox) dict.Dict {
 		gasLimit,
 		timestamp(ctx),
 		genesisAlloc,
+		getBalanceFunc(ctx),
 	)
 
 	gasRatio := codec.MustDecodeRatio32(ctx.Params().MustGet(evm.FieldGasRatio), evmtypes.DefaultGasRatio)
@@ -74,6 +77,8 @@ func initialize(ctx iscp.Sandbox) dict.Dict {
 	// storing hname as a terminal value of the contract's state nil key.
 	// This way we will be able to retrieve commitment to the contract's state
 	ctx.State().Set("", ctx.Contract().Bytes())
+
+	ctx.Privileged().SubscribeBlockContext(evm.FuncOpenBlockContext.Hname(), evm.FuncCloseBlockContext.Hname())
 
 	return nil
 }
@@ -83,18 +88,17 @@ func applyTransaction(ctx iscp.Sandbox) dict.Dict {
 	ctx.Privileged().GasBurnEnable(false)
 	defer ctx.Privileged().GasBurnEnable(true)
 
-	tx := &types.Transaction{}
-	err := tx.UnmarshalBinary(ctx.Params().MustGet(evm.FieldTransaction))
+	tx, err := evmtypes.DecodeTransaction(ctx.Params().MustGet(evm.FieldTransaction))
 	ctx.RequireNoError(err)
 
 	ctx.RequireCaller(iscp.NewEthereumAddressAgentID(evmutil.MustGetSender(tx)))
 
 	// next block will be minted when the ISC block is closed
-	emu := getEmulatorInBlockContext(ctx)
+	bctx := getBlockContext(ctx)
 
-	ctx.Requiref(tx.ChainId().Uint64() == uint64(emu.BlockchainDB().GetChainID()), "chainId mismatch")
+	ctx.Requiref(tx.ChainId().Uint64() == uint64(bctx.emu.BlockchainDB().GetChainID()), "chainId mismatch")
 
-	receipt, result, err := emu.SendTransaction(tx, ctx.Privileged().GasBurnEnable)
+	receipt, result, err := bctx.emu.SendTransaction(tx, ctx.Privileged().GasBurnEnable)
 
 	// burn EVM gas as ISC gas
 	if result != nil {
@@ -106,13 +110,17 @@ func applyTransaction(ctx iscp.Sandbox) dict.Dict {
 
 	ctx.RequireNoError(err)
 
-	// if EVM execution was reverted we must revert the ISC request as well
+	// If EVM execution was reverted we must revert the ISC request as well.
+	// Failed txs will be stored when closing the block context.
+	bctx.txs = append(bctx.txs, tx)
+	bctx.receipts = append(bctx.receipts, receipt)
 	ctx.Requiref(receipt.Status == types.ReceiptStatusSuccessful, GetRevertErrorMessage(result, ctx.Contract()))
 
 	return nil
 }
 
 func getBalance(ctx iscp.SandboxView) dict.Dict {
+	// TODO: balance might change between two eth blocks
 	addr := common.BytesToAddress(ctx.Params().MustGet(evm.FieldAddress))
 	emu := createEmulatorR(ctx)
 	_ = paramBlockNumberOrHashAsNumber(ctx, emu, false)

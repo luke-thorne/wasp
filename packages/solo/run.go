@@ -5,39 +5,41 @@ package solo
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/iotaledger/hive.go/identity"
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/wasp/packages/chain"
 	"github.com/iotaledger/wasp/packages/hashing"
 	"github.com/iotaledger/wasp/packages/iscp"
+	"github.com/iotaledger/wasp/packages/iscp/rotate"
 	"github.com/iotaledger/wasp/packages/kv/dict"
-	"github.com/iotaledger/wasp/packages/kv/trie"
 	"github.com/iotaledger/wasp/packages/state"
 	"github.com/iotaledger/wasp/packages/transaction"
 	"github.com/iotaledger/wasp/packages/vm"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 )
 
 func (ch *Chain) RunOffLedgerRequest(r iscp.Request) (dict.Dict, error) {
 	defer ch.logRequestLastBlock()
-	results := ch.runRequestsSync([]iscp.Request{r}, "off-ledger")
+	results := ch.RunRequestsSync([]iscp.Request{r}, "off-ledger")
 	if len(results) == 0 {
-		return nil, xerrors.Errorf("request was skipped")
+		return nil, errors.New("request was skipped")
 	}
 	res := results[0]
-	return res.Return, res.Error
+	return res.Return, ch.ResolveVMError(res.Receipt.Error).AsGoError()
 }
 
 func (ch *Chain) RunOffLedgerRequests(reqs []iscp.Request) []*vm.RequestResult {
 	defer ch.logRequestLastBlock()
-	return ch.runRequestsSync(reqs, "off-ledger")
+	return ch.RunRequestsSync(reqs, "off-ledger")
 }
 
-func (ch *Chain) runRequestsSync(reqs []iscp.Request, trace string) (results []*vm.RequestResult) {
+func (ch *Chain) RunRequestsSync(reqs []iscp.Request, trace string) (results []*vm.RequestResult) {
 	ch.runVMMutex.Lock()
 	defer ch.runVMMutex.Unlock()
 
@@ -86,23 +88,22 @@ func (ch *Chain) runRequestsNolock(reqs []iscp.Request, trace string) (results [
 	task := ch.runTaskNoLock(reqs, false)
 
 	var essence *iotago.TransactionEssence
-	var inputsCommitment []byte
 	if task.RotationAddress == nil {
 		essence = task.ResultTransactionEssence
-		inputsCommitment = task.ResultInputsCommitment
+		copy(essence.InputsCommitment[:], task.ResultInputsCommitment)
 	} else {
-		panic("not implemented")
-		//essence, err = rotate.MakeRotateStateControllerTransaction(
-		//	task.RotationAddress,
-		//	task.AnchorOutput,
-		//	task.Timestamp.Add(2*time.Nanosecond),
-		//	identity.ID{},
-		//	identity.ID{},
-		//)
-		//require.NoError(ch.Env.T, err)
+		var err error
+		essence, err = rotate.MakeRotateStateControllerTransaction(
+			task.RotationAddress,
+			iscp.NewAliasOutputWithID(task.AnchorOutput, task.AnchorOutputID.UTXOInput()),
+			task.TimeAssumption.Add(2*time.Nanosecond),
+			identity.ID{},
+			identity.ID{},
+		)
+		require.NoError(ch.Env.T, err)
 	}
 	sigs, err := essence.Sign(
-		inputsCommitment,
+		essence.InputsCommitment[:],
 		ch.StateControllerKeyPair.GetPrivateKey().AddressKeys(ch.StateControllerAddress),
 	)
 	require.NoError(ch.Env.T, err)
@@ -126,7 +127,7 @@ func (ch *Chain) runRequestsNolock(reqs []iscp.Request, trace string) (results [
 
 	rootC := ch.GetRootCommitment()
 	l1C := ch.GetL1Commitment()
-	require.True(ch.Env.T, trie.EqualCommitments(rootC, l1C.StateCommitment))
+	require.True(ch.Env.T, state.EqualCommitments(rootC, l1C.StateCommitment))
 
 	return task.Results
 }

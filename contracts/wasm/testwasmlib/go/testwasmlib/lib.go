@@ -5,6 +5,7 @@
 // >>>> DO NOT CHANGE THIS FILE! <<<<
 // Change the json schema instead
 
+//nolint:dupl
 package testwasmlib
 
 import "github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib"
@@ -54,6 +55,19 @@ var exportMap = wasmlib.ScExportMap{
 		ViewBigIntSub,
 		ViewBlockRecord,
 		ViewBlockRecords,
+		ViewCheckAddress,
+		ViewCheckAgentID,
+		ViewCheckBigInt,
+		ViewCheckBool,
+		ViewCheckBytes,
+		ViewCheckEthAddressAndAgentID,
+		ViewCheckHash,
+		ViewCheckHname,
+		ViewCheckIntAndUint,
+		ViewCheckNftID,
+		ViewCheckRequestID,
+		ViewCheckString,
+		ViewCheckTokenID,
 		ViewGetRandom,
 		ViewIotaBalance,
 		ViewStringMapOfStringArrayLength,
@@ -106,6 +120,19 @@ var exportMap = wasmlib.ScExportMap{
 		viewBigIntSubThunk,
 		viewBlockRecordThunk,
 		viewBlockRecordsThunk,
+		viewCheckAddressThunk,
+		viewCheckAgentIDThunk,
+		viewCheckBigIntThunk,
+		viewCheckBoolThunk,
+		viewCheckBytesThunk,
+		viewCheckEthAddressAndAgentIDThunk,
+		viewCheckHashThunk,
+		viewCheckHnameThunk,
+		viewCheckIntAndUintThunk,
+		viewCheckNftIDThunk,
+		viewCheckRequestIDThunk,
+		viewCheckStringThunk,
+		viewCheckTokenIDThunk,
 		viewGetRandomThunk,
 		viewIotaBalanceThunk,
 		viewStringMapOfStringArrayLengthThunk,
@@ -1107,6 +1134,272 @@ func viewBlockRecordsThunk(ctx wasmlib.ScViewContext) {
 	viewBlockRecords(ctx, f)
 	ctx.Results(results)
 	ctx.Log("testwasmlib.viewBlockRecords ok")
+}
+
+type CheckAddressContext struct {
+	Params ImmutableCheckAddressParams
+	State  ImmutableTestWasmLibState
+}
+
+func viewCheckAddressThunk(ctx wasmlib.ScViewContext) {
+	ctx.Log("testwasmlib.viewCheckAddress")
+	f := &CheckAddressContext{
+		Params: ImmutableCheckAddressParams{
+			proxy: wasmlib.NewParamsProxy(),
+		},
+		State: ImmutableTestWasmLibState{
+			proxy: wasmlib.NewStateProxy(),
+		},
+	}
+	ctx.Require(f.Params.AddressBytes().Exists(), "missing mandatory addressBytes")
+	ctx.Require(f.Params.AddressString().Exists(), "missing mandatory addressString")
+	ctx.Require(f.Params.ScAddress().Exists(), "missing mandatory scAddress")
+	viewCheckAddress(ctx, f)
+	ctx.Log("testwasmlib.viewCheckAddress ok")
+}
+
+type CheckAgentIDContext struct {
+	Params ImmutableCheckAgentIDParams
+	State  ImmutableTestWasmLibState
+}
+
+func viewCheckAgentIDThunk(ctx wasmlib.ScViewContext) {
+	ctx.Log("testwasmlib.viewCheckAgentID")
+	f := &CheckAgentIDContext{
+		Params: ImmutableCheckAgentIDParams{
+			proxy: wasmlib.NewParamsProxy(),
+		},
+		State: ImmutableTestWasmLibState{
+			proxy: wasmlib.NewStateProxy(),
+		},
+	}
+	ctx.Require(f.Params.AgentBytes().Exists(), "missing mandatory agentBytes")
+	ctx.Require(f.Params.AgentString().Exists(), "missing mandatory agentString")
+	ctx.Require(f.Params.ScAgentID().Exists(), "missing mandatory scAgentID")
+	viewCheckAgentID(ctx, f)
+	ctx.Log("testwasmlib.viewCheckAgentID ok")
+}
+
+type CheckBigIntContext struct {
+	Params ImmutableCheckBigIntParams
+	State  ImmutableTestWasmLibState
+}
+
+func viewCheckBigIntThunk(ctx wasmlib.ScViewContext) {
+	ctx.Log("testwasmlib.viewCheckBigInt")
+	f := &CheckBigIntContext{
+		Params: ImmutableCheckBigIntParams{
+			proxy: wasmlib.NewParamsProxy(),
+		},
+		State: ImmutableTestWasmLibState{
+			proxy: wasmlib.NewStateProxy(),
+		},
+	}
+	ctx.Require(f.Params.BigIntBytes().Exists(), "missing mandatory bigIntBytes")
+	ctx.Require(f.Params.BigIntString().Exists(), "missing mandatory bigIntString")
+	ctx.Require(f.Params.ScBigInt().Exists(), "missing mandatory scBigInt")
+	viewCheckBigInt(ctx, f)
+	ctx.Log("testwasmlib.viewCheckBigInt ok")
+}
+
+type CheckBoolContext struct {
+	State ImmutableTestWasmLibState
+}
+
+func viewCheckBoolThunk(ctx wasmlib.ScViewContext) {
+	ctx.Log("testwasmlib.viewCheckBool")
+	f := &CheckBoolContext{
+		State: ImmutableTestWasmLibState{
+			proxy: wasmlib.NewStateProxy(),
+		},
+	}
+	viewCheckBool(ctx, f)
+	ctx.Log("testwasmlib.viewCheckBool ok")
+}
+
+type CheckBytesContext struct {
+	Params ImmutableCheckBytesParams
+	State  ImmutableTestWasmLibState
+}
+
+func viewCheckBytesThunk(ctx wasmlib.ScViewContext) {
+	ctx.Log("testwasmlib.viewCheckBytes")
+	f := &CheckBytesContext{
+		Params: ImmutableCheckBytesParams{
+			proxy: wasmlib.NewParamsProxy(),
+		},
+		State: ImmutableTestWasmLibState{
+			proxy: wasmlib.NewStateProxy(),
+		},
+	}
+	ctx.Require(f.Params.Bytes().Exists(), "missing mandatory bytes")
+	viewCheckBytes(ctx, f)
+	ctx.Log("testwasmlib.viewCheckBytes ok")
+}
+
+type CheckEthAddressAndAgentIDContext struct {
+	Params ImmutableCheckEthAddressAndAgentIDParams
+	State  ImmutableTestWasmLibState
+}
+
+func viewCheckEthAddressAndAgentIDThunk(ctx wasmlib.ScViewContext) {
+	ctx.Log("testwasmlib.viewCheckEthAddressAndAgentID")
+	f := &CheckEthAddressAndAgentIDContext{
+		Params: ImmutableCheckEthAddressAndAgentIDParams{
+			proxy: wasmlib.NewParamsProxy(),
+		},
+		State: ImmutableTestWasmLibState{
+			proxy: wasmlib.NewStateProxy(),
+		},
+	}
+	ctx.Require(f.Params.EthAddress().Exists(), "missing mandatory ethAddress")
+	viewCheckEthAddressAndAgentID(ctx, f)
+	ctx.Log("testwasmlib.viewCheckEthAddressAndAgentID ok")
+}
+
+type CheckHashContext struct {
+	Params ImmutableCheckHashParams
+	State  ImmutableTestWasmLibState
+}
+
+func viewCheckHashThunk(ctx wasmlib.ScViewContext) {
+	ctx.Log("testwasmlib.viewCheckHash")
+	f := &CheckHashContext{
+		Params: ImmutableCheckHashParams{
+			proxy: wasmlib.NewParamsProxy(),
+		},
+		State: ImmutableTestWasmLibState{
+			proxy: wasmlib.NewStateProxy(),
+		},
+	}
+	ctx.Require(f.Params.HashBytes().Exists(), "missing mandatory hashBytes")
+	ctx.Require(f.Params.HashString().Exists(), "missing mandatory hashString")
+	ctx.Require(f.Params.ScHash().Exists(), "missing mandatory scHash")
+	viewCheckHash(ctx, f)
+	ctx.Log("testwasmlib.viewCheckHash ok")
+}
+
+type CheckHnameContext struct {
+	Params ImmutableCheckHnameParams
+	State  ImmutableTestWasmLibState
+}
+
+func viewCheckHnameThunk(ctx wasmlib.ScViewContext) {
+	ctx.Log("testwasmlib.viewCheckHname")
+	f := &CheckHnameContext{
+		Params: ImmutableCheckHnameParams{
+			proxy: wasmlib.NewParamsProxy(),
+		},
+		State: ImmutableTestWasmLibState{
+			proxy: wasmlib.NewStateProxy(),
+		},
+	}
+	ctx.Require(f.Params.HnameBytes().Exists(), "missing mandatory hnameBytes")
+	ctx.Require(f.Params.HnameString().Exists(), "missing mandatory hnameString")
+	ctx.Require(f.Params.ScHname().Exists(), "missing mandatory scHname")
+	viewCheckHname(ctx, f)
+	ctx.Log("testwasmlib.viewCheckHname ok")
+}
+
+type CheckIntAndUintContext struct {
+	State ImmutableTestWasmLibState
+}
+
+func viewCheckIntAndUintThunk(ctx wasmlib.ScViewContext) {
+	ctx.Log("testwasmlib.viewCheckIntAndUint")
+	f := &CheckIntAndUintContext{
+		State: ImmutableTestWasmLibState{
+			proxy: wasmlib.NewStateProxy(),
+		},
+	}
+	viewCheckIntAndUint(ctx, f)
+	ctx.Log("testwasmlib.viewCheckIntAndUint ok")
+}
+
+type CheckNftIDContext struct {
+	Params ImmutableCheckNftIDParams
+	State  ImmutableTestWasmLibState
+}
+
+func viewCheckNftIDThunk(ctx wasmlib.ScViewContext) {
+	ctx.Log("testwasmlib.viewCheckNftID")
+	f := &CheckNftIDContext{
+		Params: ImmutableCheckNftIDParams{
+			proxy: wasmlib.NewParamsProxy(),
+		},
+		State: ImmutableTestWasmLibState{
+			proxy: wasmlib.NewStateProxy(),
+		},
+	}
+	ctx.Require(f.Params.NftIDBytes().Exists(), "missing mandatory nftIDBytes")
+	ctx.Require(f.Params.NftIDString().Exists(), "missing mandatory nftIDString")
+	ctx.Require(f.Params.ScNftID().Exists(), "missing mandatory scNftID")
+	viewCheckNftID(ctx, f)
+	ctx.Log("testwasmlib.viewCheckNftID ok")
+}
+
+type CheckRequestIDContext struct {
+	Params ImmutableCheckRequestIDParams
+	State  ImmutableTestWasmLibState
+}
+
+func viewCheckRequestIDThunk(ctx wasmlib.ScViewContext) {
+	ctx.Log("testwasmlib.viewCheckRequestID")
+	f := &CheckRequestIDContext{
+		Params: ImmutableCheckRequestIDParams{
+			proxy: wasmlib.NewParamsProxy(),
+		},
+		State: ImmutableTestWasmLibState{
+			proxy: wasmlib.NewStateProxy(),
+		},
+	}
+	ctx.Require(f.Params.RequestIDBytes().Exists(), "missing mandatory requestIDBytes")
+	ctx.Require(f.Params.RequestIDString().Exists(), "missing mandatory requestIDString")
+	ctx.Require(f.Params.ScRequestID().Exists(), "missing mandatory scRequestID")
+	viewCheckRequestID(ctx, f)
+	ctx.Log("testwasmlib.viewCheckRequestID ok")
+}
+
+type CheckStringContext struct {
+	Params ImmutableCheckStringParams
+	State  ImmutableTestWasmLibState
+}
+
+func viewCheckStringThunk(ctx wasmlib.ScViewContext) {
+	ctx.Log("testwasmlib.viewCheckString")
+	f := &CheckStringContext{
+		Params: ImmutableCheckStringParams{
+			proxy: wasmlib.NewParamsProxy(),
+		},
+		State: ImmutableTestWasmLibState{
+			proxy: wasmlib.NewStateProxy(),
+		},
+	}
+	ctx.Require(f.Params.String().Exists(), "missing mandatory string")
+	viewCheckString(ctx, f)
+	ctx.Log("testwasmlib.viewCheckString ok")
+}
+
+type CheckTokenIDContext struct {
+	Params ImmutableCheckTokenIDParams
+	State  ImmutableTestWasmLibState
+}
+
+func viewCheckTokenIDThunk(ctx wasmlib.ScViewContext) {
+	ctx.Log("testwasmlib.viewCheckTokenID")
+	f := &CheckTokenIDContext{
+		Params: ImmutableCheckTokenIDParams{
+			proxy: wasmlib.NewParamsProxy(),
+		},
+		State: ImmutableTestWasmLibState{
+			proxy: wasmlib.NewStateProxy(),
+		},
+	}
+	ctx.Require(f.Params.ScTokenID().Exists(), "missing mandatory scTokenID")
+	ctx.Require(f.Params.TokenIDBytes().Exists(), "missing mandatory tokenIDBytes")
+	ctx.Require(f.Params.TokenIDString().Exists(), "missing mandatory tokenIDString")
+	viewCheckTokenID(ctx, f)
+	ctx.Log("testwasmlib.viewCheckTokenID ok")
 }
 
 type GetRandomContext struct {

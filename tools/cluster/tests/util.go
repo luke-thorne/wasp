@@ -65,7 +65,6 @@ func (e *ChainEnv) checkRootsOutside() {
 		require.EqualValues(e.t, rec.Name, recBack.Name)
 		require.EqualValues(e.t, rec.ProgramHash, recBack.ProgramHash)
 		require.EqualValues(e.t, rec.Description, recBack.Description)
-		require.Equal(e.t, iscp.AgentIDKindNil, recBack.Creator.Kind())
 	}
 }
 
@@ -224,7 +223,7 @@ func waitTrue(timeout time.Duration, fun func() bool) bool {
 func (e *ChainEnv) counterEquals(expected int64) conditionFn {
 	return func(t *testing.T, nodeIndex int) bool {
 		ret, err := e.Chain.Cluster.WaspClient(nodeIndex).CallView(
-			e.Chain.ChainID, nativeIncCounterSCHname, inccounter.FuncGetCounter.Name, nil,
+			e.Chain.ChainID, nativeIncCounterSCHname, inccounter.ViewGetCounter.Name, nil,
 		)
 		if err != nil {
 			e.t.Logf("chainEnv::counterEquals: failed to call GetCounter: %v", err)

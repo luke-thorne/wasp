@@ -5,19 +5,10 @@ package wasmsolo
 
 import (
 	iotago "github.com/iotaledger/iota.go/v3"
+	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/parameters"
 	"github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib/wasmtypes"
 )
-
-func (s *SoloSandbox) fnUtilsBase58Decode(args []byte) []byte {
-	bytes, err := s.utils.Base58().Decode(string(args))
-	s.checkErr(err)
-	return bytes
-}
-
-func (s *SoloSandbox) fnUtilsBase58Encode(args []byte) []byte {
-	return []byte(s.utils.Base58().Encode(args))
-}
 
 func (s *SoloSandbox) fnUtilsBech32Decode(args []byte) []byte {
 	hrp, addr, err := iotago.ParseBech32(string(args))
@@ -84,10 +75,11 @@ func (s *SoloSandbox) fnUtilsBech32Encode(args []byte) []byte {
 //func (s *SoloSandbox) fnUtilsHashBlake2b(args []byte) []byte {
 //	return s.utils.Hashing().Blake2b(args).Bytes()
 //}
-//
-//func (s *SoloSandbox) fnUtilsHashName(args []byte) []byte {
-//	return codec.EncodeHname(s.utils.Hashing().Hname(string(args)))
-//}
+
+func (s *SoloSandbox) fnUtilsHashName(args []byte) []byte {
+	return codec.EncodeHname(s.utils.Hashing().Hname(string(args)))
+}
+
 //
 //func (s *SoloSandbox) fnUtilsHashSha3(args []byte) []byte {
 //	return s.utils.Hashing().Sha3(args).Bytes()

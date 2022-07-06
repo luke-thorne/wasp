@@ -10,6 +10,8 @@ var Contract = coreutil.NewContract(coreutil.CoreContractAccounts, "Chain accoun
 var (
 	// Views
 	ViewBalance                  = coreutil.ViewFunc("balance")
+	ViewBalanceBaseToken         = coreutil.ViewFunc("balanceBaseToken")
+	ViewBalanceNativeToken       = coreutil.ViewFunc("balanceNativeToken")
 	ViewTotalAssets              = coreutil.ViewFunc("totalAssets")
 	ViewAccounts                 = coreutil.ViewFunc("accounts")
 	ViewGetAccountNonce          = coreutil.ViewFunc("getAccountNonce")
@@ -31,8 +33,8 @@ var (
 )
 
 const (
-	// MinimumIotasOnCommonAccount can't harvest the minimum
-	MinimumIotasOnCommonAccount = 3000
+	// MinimumBaseTokensOnCommonAccount can't harvest the minimum
+	MinimumBaseTokensOnCommonAccount = 3000
 
 	// prefix for a name of a particular account
 	prefixAccount = string(byte(iota) + 'A')
@@ -57,7 +59,7 @@ const (
 
 	ParamAgentID                   = "a"
 	ParamAccountNonce              = "n"
-	ParamForceMinimumIotas         = "f"
+	ParamForceMinimumBaseTokens    = "f"
 	ParamFoundrySN                 = "s"
 	ParamFoundryOutputBin          = "b"
 	ParamTokenScheme               = "t"
@@ -68,6 +70,8 @@ const (
 	ParamNFTIDs                    = "i"
 	ParamNFTID                     = "z"
 	ParamNFTData                   = "e"
+	ParamBalance                   = "B"
+	ParamNativeTokenID             = "N"
 )
 
 var ErrDustDepositAssumptionsWrong = xerrors.New("'dust deposit assumptions' parameter not specified or wrong")

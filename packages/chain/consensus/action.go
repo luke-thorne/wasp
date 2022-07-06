@@ -17,15 +17,18 @@ import (
 	"github.com/iotaledger/wasp/packages/hashing"
 	"github.com/iotaledger/wasp/packages/iscp"
 	"github.com/iotaledger/wasp/packages/iscp/rotate"
-	"github.com/iotaledger/wasp/packages/kv/trie"
+	"github.com/iotaledger/wasp/packages/kv"
+	"github.com/iotaledger/wasp/packages/kv/codec"
+	"github.com/iotaledger/wasp/packages/kv/subrealm"
 	"github.com/iotaledger/wasp/packages/parameters"
 	"github.com/iotaledger/wasp/packages/peering"
+	"github.com/iotaledger/wasp/packages/state"
 	"github.com/iotaledger/wasp/packages/transaction"
 	"github.com/iotaledger/wasp/packages/util"
 	"github.com/iotaledger/wasp/packages/vm"
+	"github.com/iotaledger/wasp/packages/vm/core/governance"
 	"go.dedis.ch/kyber/v3/sign/dss"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 )
 
 // takeAction triggers actions whenever relevant
@@ -63,11 +66,11 @@ func (c *consensus) proposeBatchIfNeeded() {
 		c.log.Debugf("proposeBatch not needed: delayed for %v from %v", c.timers.ProposeBatchDelayForNewState, c.stateTimestamp)
 		return
 	}
-	if c.timeData == nil {
+	if c.timeData.IsZero() {
 		c.log.Debugf("proposeBatch not needed: time data hasn't been received yet")
 		return
 	}
-	reqs := c.mempool.ReadyNow(*c.timeData)
+	reqs := c.mempool.ReadyNow(c.timeData)
 	if len(reqs) == 0 {
 		c.log.Debugf("proposeBatch not needed: no ready requests in mempool")
 		return
@@ -90,7 +93,7 @@ func (c *consensus) proposeBatchIfNeeded() {
 
 // runVMIfNeeded attempts to extract deterministic batch of requests from ACS.
 // If it succeeds (i.e. all requests are available) and the extracted batch is nonempty, it runs the request
-func (c *consensus) runVMIfNeeded() {
+func (c *consensus) runVMIfNeeded() { // nolint:funlen
 	if !c.workflow.IsConsensusBatchKnown() {
 		c.log.Debugf("runVM not needed: consensus batch is not known")
 		return
@@ -133,41 +136,52 @@ func (c *consensus) runVMIfNeeded() {
 	c.sortBatch(reqs)
 	c.log.Debugf("runVM: sorted requests: %+v", iscp.ShortRequestIDsFromRequests(reqs))
 
-	if vmTask := c.prepareVMTask(reqs); vmTask != nil {
-		chainID := iscp.ChainIDFromAliasID(vmTask.AnchorOutput.AliasID)
-		c.log.Debugw("runVMIfNeeded: starting VM task",
-			"chainID", (&chainID).String(),
-			"ACS session ID", vmTask.ACSSessionID,
-			"milestone", vmTask.TimeAssumption.MilestoneIndex,
-			"timestamp", vmTask.TimeAssumption.Time,
-			"timestamp (Unix nano)", vmTask.TimeAssumption.Time.UnixNano(),
-			"anchor output ID", iscp.OID(vmTask.AnchorOutputID.UTXOInput()),
-			"block index", vmTask.AnchorOutput.StateIndex,
-			"entropy", vmTask.Entropy.String(),
-			"validator fee target", vmTask.ValidatorFeeTarget.String(),
-			"num req", len(vmTask.Requests),
-			"estimate gas mode", vmTask.EstimateGasMode,
-			"state commitment", trie.RootCommitment(vmTask.VirtualStateAccess.TrieNodeStore()),
-		)
-		c.workflow.setVMStarted()
-		c.consensusMetrics.CountVMRuns()
-		go func() {
-			c.vmRunner.Run(vmTask)
-			if vmTask.VMError != nil {
-				c.log.Errorf("runVM result: VM task failed: %v", vmTask.VMError)
-				return
-			}
-			c.log.Debugf("runVM result: responding by state index: %d state commitment: %s",
-				vmTask.VirtualStateAccess.BlockIndex(), trie.RootCommitment(vmTask.VirtualStateAccess.TrieNodeStore()))
-			c.EnqueueVMResultMsg(&messages.VMResultMsg{
-				Task: vmTask,
-			})
-			elapsed := time.Since(c.workflow.GetVMStartedTime())
-			c.consensusMetrics.RecordVMRunTime(elapsed)
-		}()
-	} else {
+	vmTask := c.prepareVMTask(reqs)
+	if vmTask == nil {
 		c.log.Errorf("runVM: error preparing VM task")
+		return
 	}
+	chainID := iscp.ChainIDFromAliasID(vmTask.AnchorOutput.AliasID)
+	c.log.Debugw("runVMIfNeeded: starting VM task",
+		"chainID", (&chainID).String(),
+		"ACS session ID", vmTask.ACSSessionID,
+		"timestamp", vmTask.TimeAssumption,
+		"timestamp (Unix nano)", vmTask.TimeAssumption.UnixNano(),
+		"anchor output ID", iscp.OID(vmTask.AnchorOutputID.UTXOInput()),
+		"block index", vmTask.AnchorOutput.StateIndex,
+		"entropy", vmTask.Entropy.String(),
+		"validator fee target", vmTask.ValidatorFeeTarget.String(),
+		"num req", len(vmTask.Requests),
+		"estimate gas mode", vmTask.EstimateGasMode,
+		"state commitment", state.RootCommitment(vmTask.VirtualStateAccess.TrieNodeStore()),
+	)
+	c.workflow.setVMStarted()
+	c.consensusMetrics.CountVMRuns()
+	go func() {
+		c.vmRunner.Run(vmTask)
+		if vmTask.VMError != nil {
+			c.log.Errorf("runVM result: VM task failed: %v", vmTask.VMError)
+			return
+		}
+		finalRequestsCount := len(vmTask.Results)
+		if finalRequestsCount == 0 {
+			c.log.Debugf("runVM result: no requests included, ignoring the result and restarting the workflow")
+			c.resetWorkflow()
+			return
+		}
+		// NOTE: this loop is needed for logging purposes only; it can be removed for optimisation if needed.
+		finalRequests := make([]iscp.Request, finalRequestsCount)
+		for i := range vmTask.Results {
+			finalRequests[i] = vmTask.Results[i].Request
+		}
+		c.log.Debugf("runVM result: responding by state index: %d, state commitment: %s, included %v requests: %v",
+			vmTask.VirtualStateAccess.BlockIndex(), state.RootCommitment(vmTask.VirtualStateAccess.TrieNodeStore()), finalRequestsCount, iscp.ShortRequestIDsFromRequests(finalRequests))
+		c.EnqueueVMResultMsg(&messages.VMResultMsg{
+			Task: vmTask,
+		})
+		elapsed := time.Since(c.workflow.GetVMStartedTime())
+		c.consensusMetrics.RecordVMRunTime(elapsed)
+	}()
 }
 
 func (c *consensus) pollMissingRequests(missingRequestIndexes []int) {
@@ -230,6 +244,15 @@ func (c *consensus) sortBatch(reqs []iscp.Request) {
 	}
 }
 
+func getMaintenanceStatus(store kv.KVStore) bool {
+	govstate := subrealm.New(store, kv.Key(governance.Contract.Hname().Bytes()))
+	r := govstate.MustGet(governance.VarMaintenanceStatus)
+	if r == nil {
+		return false // chain is being initialized, governance has not been initialized yet
+	}
+	return codec.MustDecodeBool(r)
+}
+
 func (c *consensus) prepareVMTask(reqs []iscp.Request) *vm.VMTask {
 	stateBaseline := c.chain.GlobalStateSync().GetSolidIndexBaseline()
 	if !stateBaseline.IsValid() {
@@ -237,17 +260,18 @@ func (c *consensus) prepareVMTask(reqs []iscp.Request) *vm.VMTask {
 		return nil
 	}
 	task := &vm.VMTask{
-		ACSSessionID:       c.acsSessionID,
-		Processors:         c.chain.Processors(),
-		AnchorOutput:       c.stateOutput.GetAliasOutput(),
-		AnchorOutputID:     c.stateOutput.OutputID(),
-		SolidStateBaseline: stateBaseline,
-		Entropy:            c.consensusEntropy,
-		ValidatorFeeTarget: c.consensusBatch.FeeDestination,
-		Requests:           reqs,
-		TimeAssumption:     c.consensusBatch.TimeData,
-		VirtualStateAccess: c.currentState.Copy(),
-		Log:                c.log.Desugar().WithOptions(zap.AddCallerSkip(1)).Sugar(),
+		ACSSessionID:           c.acsSessionID,
+		Processors:             c.chain.Processors(),
+		AnchorOutput:           c.stateOutput.GetAliasOutput(),
+		AnchorOutputID:         c.stateOutput.OutputID(),
+		SolidStateBaseline:     stateBaseline,
+		Entropy:                c.consensusEntropy,
+		ValidatorFeeTarget:     c.consensusBatch.FeeDestination,
+		Requests:               reqs,
+		TimeAssumption:         c.consensusBatch.TimeData,
+		VirtualStateAccess:     c.currentState.Copy(),
+		Log:                    c.log.Desugar().WithOptions(zap.AddCallerSkip(1)).Sugar(),
+		MaintenanceModeEnabled: getMaintenanceStatus(c.currentState.KVStore()),
 	}
 	c.log.Debugf("prepareVMTask: VM task prepared")
 	return task
@@ -286,7 +310,7 @@ func (c *consensus) broadcastSignedResultIfNeeded() {
 // Then it deterministically calculates a priority sequence among contributing nodes for posting
 // the transaction to L1. The deadline por posting is set proportionally to the sequence number (deterministic)
 // If the node sees the transaction of the L1 before its deadline, it cancels its posting
-func (c *consensus) checkQuorum() {
+func (c *consensus) checkQuorum() { //nolint:funlen
 	if c.workflow.IsTransactionFinalized() {
 		c.log.Debugf("checkQuorum not needed: transaction already finalized")
 		return
@@ -349,29 +373,29 @@ func (c *consensus) checkQuorum() {
 
 	c.finalTx = tx
 
-	// if !chainOutput.GetIsGovernanceUpdated() {
-	// write block to WAL
-	chainOutputID := chainOutput.ID()
-	block, err := c.resultState.ExtractBlock()
-	if err == nil {
-		block.SetApprovingOutputID(chainOutputID)
-		err = c.wal.Write(block.Bytes())
+	if c.resultState != nil { // if it is not governance transaction (state controller rotation)
+		// write block to WAL
+		chainOutputID := chainOutput.ID()
+		block, err := c.resultState.ExtractBlock()
 		if err == nil {
-			c.log.Debugf("checkQuorum: block index %v written to wal", block.BlockIndex())
+			block.SetApprovingOutputID(chainOutputID)
+			err = c.wal.Write(block.Bytes())
+			if err == nil {
+				c.log.Debugf("checkQuorum: block index %v written to wal", block.BlockIndex())
+			} else {
+				c.log.Warnf("checkQuorum: error writing block to wal: %v", err)
+			}
 		} else {
-			c.log.Warnf("checkQuorum: error writing block to wal: %v", err)
+			c.log.Warnf("checkQuorum: skipping writing block to wal: error extracting block from state: %v", err)
 		}
-	} else {
-		c.log.Warnf("checkQuorum: skipping writing block to was: error extracting block from state: %v", err)
-	}
 
-	// if it is not state controller rotation, sending message to state manager
-	// Otherwise state manager is not notified
-	c.workflow.setCurrentStateIndex(c.resultState.BlockIndex())
-	c.chain.StateCandidateToStateManager(c.resultState, chainOutputID)
-	c.log.Debugf("checkQuorum: StateCandidateMsg sent for state index %v, approving output ID %v",
-		c.resultState.BlockIndex(), iscp.OID(chainOutputID))
-	//}
+		// sending message to state manager
+		// if it is state controller rotation, state manager is not notified
+		c.workflow.setCurrentStateIndex(c.resultState.BlockIndex())
+		c.chain.StateCandidateToStateManager(c.resultState, chainOutputID)
+		c.log.Debugf("checkQuorum: StateCandidateMsg sent for state index %v, approving output ID %v",
+			c.resultState.BlockIndex(), iscp.OID(chainOutputID))
+	}
 
 	// calculate deterministic and pseudo-random order and postTxDeadline among contributors
 	var postSeqNumber uint16
@@ -382,7 +406,14 @@ func (c *consensus) checkQuorum() {
 		return
 	}
 	if c.iAmContributor {
-		permutation = util.NewPermutation16(uint16(len(c.contributors)), txID[:])
+		seed := int64(0)
+		for i := range txID {
+			seed = ((seed << 8) | (seed >> 56 & 0x0FF)) ^ int64(txID[i])
+		}
+		permutation, err = util.NewPermutation16(uint16(len(c.contributors)), seed)
+		if err != nil {
+			c.log.Panicf("This should not happen as the seed is provided: %v", err)
+		}
 		postSeqNumber = permutation.GetArray()[c.myContributionSeqNumber]
 		c.postTxDeadline = time.Now().Add(time.Duration(postSeqNumber) * c.timers.PostTxSequenceStep)
 
@@ -418,17 +449,27 @@ func (c *consensus) postTransactionIfNeeded() {
 		c.log.Debugf("postTransaction not needed: delayed till %v", c.postTxDeadline)
 		return
 	}
-	stateIndex := c.resultState.BlockIndex()
-	go c.nodeConn.PublishTransaction(stateIndex, c.finalTx)
+	var logMsgTypeStr string
+	var logMsgStateIndexStr string
+	if c.resultState == nil { // governance transaction
+		go c.nodeConn.PublishGovernanceTransaction(c.finalTx) //nolint:errcheck
+		logMsgTypeStr = "GOVERNANCE"
+		logMsgStateIndexStr = ""
+	} else {
+		stateIndex := c.resultState.BlockIndex()
+		go c.nodeConn.PublishStateTransaction(stateIndex, c.finalTx) //nolint:errcheck
+		logMsgTypeStr = "STATE"
+		logMsgStateIndexStr = fmt.Sprintf(" for state %v", stateIndex)
+	}
 
 	c.workflow.setTransactionPosted() // TODO: Fix it, retries should be in place for robustness.
+	logMsgStart := fmt.Sprintf("postTransaction: POSTED %s TRANSACTION%s:", logMsgTypeStr, logMsgStateIndexStr)
+	logMsgEnd := fmt.Sprintf("number of inputs: %d, outputs: %d", len(c.finalTx.Essence.Inputs), len(c.finalTx.Essence.Outputs))
 	txID, err := c.finalTx.ID()
 	if err == nil {
-		c.log.Infof("postTransaction: POSTED TRANSACTION for state %v: %s, number of inputs: %d, outputs: %d",
-			stateIndex, iscp.TxID(txID), len(c.finalTx.Essence.Inputs), len(c.finalTx.Essence.Outputs))
+		c.log.Infof("%s %s, %s", logMsgStart, iscp.TxID(txID), logMsgEnd)
 	} else {
-		c.log.Warnf("postTransaction: POSTED TRANSACTION for state %v: number of inputs: %d, outputs: %d, error calculating id: %v",
-			stateIndex, len(c.finalTx.Essence.Inputs), len(c.finalTx.Essence.Outputs), err)
+		c.log.Warnf("%s %s", logMsgStart, logMsgEnd)
 	}
 }
 
@@ -471,7 +512,7 @@ func (c *consensus) prepareBatchProposal(reqs []iscp.Request) *BatchProposal {
 		StateOutputID:           c.stateOutput.ID(),
 		RequestIDs:              make([]iscp.RequestID, len(reqs)),
 		RequestHashes:           make([][32]byte, len(reqs)),
-		TimeData:                *c.timeData,
+		TimeData:                c.timeData,
 		ConsensusManaPledge:     consensusManaPledge,
 		AccessManaPledge:        accessManaPledge,
 		FeeDestination:          feeDestination,
@@ -638,11 +679,11 @@ func (c *consensus) processTxInclusionState(msg *messages.TxInclusionStateMsg) {
 func (c *consensus) finalizeTransaction(sigSharesToAggregate []*dss.PartialSig) (*iotago.Transaction, *iscp.AliasOutputWithID, error) {
 	signingBytes, err := c.resultTxEssence.SigningMessage()
 	if err != nil {
-		return nil, nil, xerrors.Errorf("creating signing message failed: %v", err)
+		return nil, nil, fmt.Errorf("creating signing message failed: %v", err)
 	}
 	signature, err := c.committee.DKShare().DSSRecoverMasterSignature(sigSharesToAggregate, signingBytes)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("RecoverMasterSignature fail: %w", err)
+		return nil, nil, fmt.Errorf("RecoverMasterSignature fail: %w", err)
 	}
 
 	// check consistency ---------------- check if chain inputs were consumed
@@ -683,7 +724,8 @@ func (c *consensus) finalizeTransaction(sigSharesToAggregate []*dss.PartialSig) 
 }
 
 func (c *consensus) setNewState(msg *messages.StateTransitionMsg) bool {
-	if msg.State.BlockIndex() != msg.StateOutput.GetStateIndex() {
+	sameIndex := msg.State.BlockIndex() == msg.StateOutput.GetStateIndex()
+	if !msg.IsGovernance && !sameIndex {
 		// NOTE: should be a panic. However this situation may occur (and occurs) in normal circumstations:
 		// 1) State manager synchronizes to state index n and passes state transmission message through event to consensus asynchronously
 		// 2) Consensus is overwhelmed and receives a message after delay
@@ -701,18 +743,38 @@ func (c *consensus) setNewState(msg *messages.StateTransitionMsg) bool {
 		return false
 	}
 
-	c.stateOutput = msg.StateOutput
-	c.currentState = msg.State
+	// If c.stateOutput.GetStateIndex() == msg.StateOutput.GetStateIndex() and the new state output is not a governance update, then either,
+	// a) c.stateOutput is the same as msg.StateOutput and there is no need to reassign c.stateOutput or b) msg.StateOutput is a regular state update
+	// output and c.stateOutput is a governance update output with the same index; in such case governance update is the last and should be taken
+	// into account. Regular state output is overwritten by governance update output and should be ignored.
+	// TODO: it is assumed, that at most one governance update transaction may occur in between regular state update transactions. The situation of
+	// several consecutive governance update transactions are yet to be discussed, designed and implemented. The main problem is that there is no way
+	// in knowing the exact order of governance updates, which have the same block index.
+	// I.e., this situation is undefined:
+	// ... -> Transaction to state index 15 -> Govenance update at state index 15 -> Another governance update at state index 15 -> Transaction to state index 16 -> ...
+	// however, this situation should be handled normally:
+	// ... -> Transaction to state index 15 -> Govenance update at state index 15 -> Transaction to state index 16 -> Governance update at state index 16 -> ...
+	if (c.stateOutput == nil) || (c.stateOutput.GetStateIndex() < msg.StateOutput.GetStateIndex()) || msg.IsGovernance {
+		c.stateOutput = msg.StateOutput
+	} else {
+		c.log.Debugf("consensus::setNewState: ignoring the received state output %s in favor of the current one %s", iscp.OID(msg.StateOutput.ID()), iscp.OID(c.stateOutput.ID()))
+	}
 	c.stateTimestamp = msg.StateTimestamp
-	oid := msg.StateOutput.OutputID()
+	oid := c.stateOutput.OutputID()
 	c.acsSessionID = util.MustUint64From8Bytes(hashing.HashData(oid[:]).Bytes()[:8])
-	r := ""
-	/* TODO
-	if c.stateOutput.GetIsGovernanceUpdated() {
-		r = " (rotate) "
-	}*/
-	c.log.Debugf("SET NEW STATE #%d%s, output: %s, state commitment: %s",
-		msg.StateOutput.GetStateIndex(), r, iscp.OID(msg.StateOutput.ID()), trie.RootCommitment(msg.State.TrieNodeStore()))
+	if msg.IsGovernance && !sameIndex {
+		c.currentState = nil
+		c.log.Debugf("SET NEW STATE #%d (rotate) and pausing consensus to wait for adequate state, output: %s",
+			c.stateOutput.GetStateIndex(), iscp.OID(c.stateOutput.ID()))
+	} else {
+		c.currentState = msg.State
+		r := ""
+		if msg.IsGovernance {
+			r = " (rotate) "
+		}
+		c.log.Debugf("SET NEW STATE #%d%s, output: %s, state commitment: %s",
+			c.stateOutput.GetStateIndex(), r, iscp.OID(c.stateOutput.ID()), state.RootCommitment(c.currentState.TrieNodeStore()))
+	}
 	c.resetWorkflow()
 	return true
 }
@@ -728,7 +790,7 @@ func (c *consensus) resetWorkflow() {
 	c.consensusBatch = nil
 	c.contributors = nil
 	c.resultSigAck = c.resultSigAck[:0]
-	c.workflow = newWorkflowStatus(c.stateOutput != nil, c.workflow.stateIndex)
+	c.workflow = newWorkflowStatus(c.stateOutput != nil && c.currentState != nil, c.workflow.stateIndex)
 	c.log.Debugf("Workflow reset")
 }
 
@@ -785,8 +847,8 @@ func (c *consensus) makeRotateStateControllerTransaction(task *vm.VMTask) *iotag
 	// TODO access and consensus pledge
 	essence, err := rotate.MakeRotateStateControllerTransaction(
 		task.RotationAddress,
-		task.AnchorOutput,
-		task.TimeAssumption.Time,
+		iscp.NewAliasOutputWithID(task.AnchorOutput, task.AnchorOutputID.UTXOInput()),
+		task.TimeAssumption,
 		identity.ID{},
 		identity.ID{},
 	)

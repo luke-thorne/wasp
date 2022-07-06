@@ -7,14 +7,13 @@ import (
 	"github.com/iotaledger/hive.go/logger"
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/iota.go/v3/tpkg"
+	"github.com/iotaledger/trie.go/trie"
 	"github.com/iotaledger/wasp/packages/cryptolib"
-	"github.com/iotaledger/wasp/packages/hashing"
 	"github.com/iotaledger/wasp/packages/iscp"
 	"github.com/iotaledger/wasp/packages/iscp/coreutil"
 	"github.com/iotaledger/wasp/packages/kv"
 	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/kv/dict"
-	"github.com/iotaledger/wasp/packages/kv/trie"
 	"github.com/iotaledger/wasp/packages/state"
 	"github.com/iotaledger/wasp/packages/vm"
 	"github.com/iotaledger/wasp/packages/vm/core/blocklog"
@@ -40,7 +39,7 @@ func NewMockedVMRunner(t *testing.T, log *logger.Logger) *MockedVMRunner {
 func (r *MockedVMRunner) Run(task *vm.VMTask) {
 	r.log.Debugf("Mocked VM runner: VM started for state %v commitment %v output %v",
 		task.VirtualStateAccess.BlockIndex(), trie.RootCommitment(task.VirtualStateAccess.TrieNodeStore()), iscp.OID(task.AnchorOutputID.UTXOInput()))
-	nextvs, txEssence, inputsCommitment := nextState(r.t, task.VirtualStateAccess, task.AnchorOutput, task.AnchorOutputID, task.TimeAssumption.Time, task.Requests...)
+	nextvs, txEssence, inputsCommitment := nextState(r.t, task.VirtualStateAccess, task.AnchorOutput, task.AnchorOutputID, task.TimeAssumption, task.Requests...)
 	task.VirtualStateAccess = nextvs
 	task.RotationAddress = nil
 	task.ResultTransactionEssence = txEssence
@@ -50,7 +49,6 @@ func (r *MockedVMRunner) Run(task *vm.VMTask) {
 		task.Results[i] = &vm.RequestResult{
 			Request: task.Requests[i],
 			Return:  dict.New(),
-			Error:   nil,
 			Receipt: &blocklog.RequestReceipt{
 				Request: task.Requests[i],
 				Error:   nil,
@@ -113,7 +111,7 @@ func nextState(
 				NativeTokens:   consumedOutput.NativeTokens,
 				AliasID:        aliasID,
 				StateIndex:     consumedOutput.StateIndex + 1,
-				StateMetadata:  state.NewL1Commitment(trie.RootCommitment(nextvs.TrieNodeStore()), hashing.HashData(block.EssenceBytes())).Bytes(),
+				StateMetadata:  state.NewL1Commitment(trie.RootCommitment(nextvs.TrieNodeStore()), state.BlockHashFromData(block.EssenceBytes())).Bytes(),
 				FoundryCounter: consumedOutput.FoundryCounter,
 				Conditions:     consumedOutput.Conditions,
 				Features:       consumedOutput.Features,

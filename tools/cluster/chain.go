@@ -16,7 +16,6 @@ import (
 	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/kv/collections"
 	"github.com/iotaledger/wasp/packages/kv/dict"
-	"github.com/iotaledger/wasp/packages/kv/kvdecoder"
 	"github.com/iotaledger/wasp/packages/vm/core/blob"
 	"github.com/iotaledger/wasp/packages/vm/core/blocklog"
 	"github.com/iotaledger/wasp/packages/vm/core/root"
@@ -91,6 +90,10 @@ func (ch *Chain) SCClient(contractHname iscp.Hname, sigScheme *cryptolib.KeyPair
 
 func (ch *Chain) CommitteeMultiClient() *multiclient.MultiClient {
 	return multiclient.New(ch.CommitteeAPIHosts())
+}
+
+func (ch *Chain) AllNodesMultiClient() *multiclient.MultiClient {
+	return multiclient.New(ch.AllAPIHosts())
 }
 
 func (ch *Chain) DeployContract(name, progHashStr, description string, initParams map[string]interface{}) (*iotago.Transaction, error) {
@@ -239,7 +242,7 @@ func (ch *Chain) ContractRegistry(nodeIndex ...int) (map[iscp.Hname]*root.Contra
 
 func (ch *Chain) GetCounterValue(inccounterSCHname iscp.Hname, nodeIndex ...int) (int64, error) {
 	cl := ch.SCClient(inccounterSCHname, nil, nodeIndex...)
-	ret, err := cl.CallView(inccounter.FuncGetCounter.Name, nil)
+	ret, err := cl.CallView(inccounter.ViewGetCounter.Name, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -251,34 +254,28 @@ func (ch *Chain) GetStateVariable(contractHname iscp.Hname, key string, nodeInde
 	return cl.StateGet(key)
 }
 
-func (ch *Chain) GetRequestReceipt(reqID iscp.RequestID, nodeIndex ...int) (*blocklog.RequestReceipt, uint32, uint16, error) {
-	cl := ch.SCClient(blocklog.Contract.Hname(), nil, nodeIndex...)
-	ret, err := cl.CallView(blocklog.ViewGetRequestReceipt.Name, dict.Dict{blocklog.ParamRequestID: reqID.Bytes()})
-	if err != nil {
-		return nil, 0, 0, err
+func (ch *Chain) GetRequestReceipt(reqID iscp.RequestID, nodeIndex ...int) (*iscp.Receipt, error) {
+	idx := 0
+	if len(nodeIndex) > 0 {
+		idx = nodeIndex[0]
 	}
-	resultDecoder := kvdecoder.New(ret)
-	binRec, err := resultDecoder.GetBytes(blocklog.ParamRequestRecord, nil)
-	if err != nil || binRec == nil {
-		return nil, 0, 0, err
-	}
-	rec, err := blocklog.RequestReceiptFromBytes(binRec)
-	if err != nil {
-		return nil, 0, 0, err
-	}
-	blockIndex := resultDecoder.MustGetUint32(blocklog.ParamBlockIndex)
-	requestIndex := resultDecoder.MustGetUint16(blocklog.ParamRequestIndex)
-	return rec, blockIndex, requestIndex, nil
+	rec, err := ch.Cluster.WaspClient(idx).RequestReceipt(ch.ChainID, reqID)
+	return rec, err
 }
 
-func (ch *Chain) GetRequestReceiptsForBlock(blockIndex uint32, nodeIndex ...int) ([]*blocklog.RequestReceipt, error) {
+func (ch *Chain) GetRequestReceiptsForBlock(blockIndex *uint32, nodeIndex ...int) ([]*blocklog.RequestReceipt, error) {
 	cl := ch.SCClient(blocklog.Contract.Hname(), nil, nodeIndex...)
-	res, err := cl.CallView(blocklog.ViewGetRequestReceiptsForBlock.Name, dict.Dict{
-		blocklog.ParamBlockIndex: codec.EncodeUint32(blockIndex),
-	})
+	params := dict.Dict{}
+	if blockIndex != nil {
+		params = dict.Dict{
+			blocklog.ParamBlockIndex: codec.EncodeUint32(*blockIndex),
+		}
+	}
+	res, err := cl.CallView(blocklog.ViewGetRequestReceiptsForBlock.Name, params)
 	if err != nil {
 		return nil, err
 	}
+	returnedBlockIndex := codec.MustDecodeUint32(res.MustGet(blocklog.ParamBlockIndex))
 	recs := collections.NewArray16ReadOnly(res, blocklog.ParamRequestRecord)
 	ret := make([]*blocklog.RequestReceipt, recs.MustLen())
 	for i := range ret {
@@ -290,7 +287,7 @@ func (ch *Chain) GetRequestReceiptsForBlock(blockIndex uint32, nodeIndex ...int)
 		if err != nil {
 			return nil, err
 		}
-		ret[i].WithBlockData(blockIndex, uint16(i))
+		ret[i].WithBlockData(returnedBlockIndex, uint16(i))
 	}
 	return ret, nil
 }

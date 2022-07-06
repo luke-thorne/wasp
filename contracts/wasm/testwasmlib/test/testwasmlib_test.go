@@ -5,17 +5,19 @@ package test
 
 import (
 	"fmt"
-	"math"
 	"math/big"
+	"math/rand"
 	"strconv"
 	"strings"
 	"testing"
 
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/wasp/contracts/wasm/testwasmlib/go/testwasmlib"
+	"github.com/iotaledger/wasp/packages/hashing"
 	"github.com/iotaledger/wasp/packages/iscp"
 	"github.com/iotaledger/wasp/packages/parameters"
 	"github.com/iotaledger/wasp/packages/solo"
+	"github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib/coreblocklog"
 	"github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib/wasmtypes"
 	"github.com/iotaledger/wasp/packages/wasmvm/wasmsolo"
 	"github.com/stretchr/testify/require"
@@ -111,6 +113,7 @@ func testValidParams(t *testing.T) *wasmsolo.SoloContext {
 	pt := testwasmlib.ScFuncs.ParamTypes(ctx)
 	pt.Params.Address().SetValue(ctx.CurrentChainID().Address())
 	pt.Params.AgentID().SetValue(ctx.AccountID())
+	pt.Params.BigInt().SetValue(wasmtypes.BigIntFromString("100000000000000000000"))
 	pt.Params.Bool().SetValue(true)
 	pt.Params.Bytes().SetValue([]byte("these are bytes"))
 	pt.Params.ChainID().SetValue(ctx.CurrentChainID())
@@ -338,18 +341,12 @@ func TestWasmTypes(t *testing.T) {
 	// check alias address
 	scAliasAddress := scChainID.Address()
 	aliasAddress := chainID.AsAddress()
-	require.True(t, scAliasAddress == wasmtypes.AddressFromBytes(wasmtypes.AddressToBytes(scAliasAddress)))
-	require.True(t, scAliasAddress == wasmtypes.AddressFromString(wasmtypes.AddressToString(scAliasAddress)))
-	require.EqualValues(t, scAliasAddress.Bytes(), iscp.BytesFromAddress(aliasAddress))
-	require.EqualValues(t, scAliasAddress.String(), aliasAddress.Bech32(parameters.L1.Protocol.Bech32HRP))
+	checkAddress(t, ctx, scAliasAddress, aliasAddress)
 
 	// check ed25519 address
 	scEd25519Address := ctx.Originator().ScAgentID().Address()
 	ed25519Address := ctx.Chain.OriginatorAddress
-	require.True(t, scEd25519Address == wasmtypes.AddressFromBytes(wasmtypes.AddressToBytes(scEd25519Address)))
-	require.True(t, scEd25519Address == wasmtypes.AddressFromString(wasmtypes.AddressToString(scEd25519Address)))
-	require.EqualValues(t, scEd25519Address.Bytes(), iscp.BytesFromAddress(ed25519Address))
-	require.EqualValues(t, scEd25519Address.String(), ed25519Address.Bech32(parameters.L1.Protocol.Bech32HRP))
+	checkAddress(t, ctx, scEd25519Address, ed25519Address)
 
 	// check nft address (currently simply use
 	// serialized alias address and overwrite the kind byte)
@@ -358,177 +355,244 @@ func TestWasmTypes(t *testing.T) {
 	scNftAddress := wasmtypes.AddressFromBytes(nftBytes)
 	nftBytes[0] = byte(iotago.AddressNFT)
 	nftAddress, _, _ := iscp.AddressFromBytes(nftBytes)
-	require.True(t, scNftAddress == wasmtypes.AddressFromBytes(wasmtypes.AddressToBytes(scNftAddress)))
-	require.True(t, scNftAddress == wasmtypes.AddressFromString(wasmtypes.AddressToString(scNftAddress)))
-	require.EqualValues(t, scNftAddress.Bytes(), iscp.BytesFromAddress(nftAddress))
-	require.EqualValues(t, scNftAddress.String(), nftAddress.Bech32(parameters.L1.Protocol.Bech32HRP))
+	checkAddress(t, ctx, scNftAddress, nftAddress)
 
 	// check agent id of alias address (hname zero)
 	scAgentID := wasmtypes.NewScAgentIDFromAddress(scAliasAddress)
 	agentID := iscp.NewAgentID(aliasAddress)
-	require.True(t, scAgentID == wasmtypes.AgentIDFromBytes(wasmtypes.AgentIDToBytes(scAgentID)))
-	require.True(t, scAgentID == wasmtypes.AgentIDFromString(wasmtypes.AgentIDToString(scAgentID)))
-	require.EqualValues(t, scAgentID.Bytes(), agentID.Bytes())
-	require.EqualValues(t, scAgentID.String(), agentID.String())
+	checkAgentID(t, ctx, scAgentID, agentID)
 
 	// check agent id of ed25519 address (hname zero)
 	scAgentID = wasmtypes.NewScAgentIDFromAddress(scEd25519Address)
 	agentID = iscp.NewAgentID(ed25519Address)
-	require.True(t, scAgentID == wasmtypes.AgentIDFromBytes(wasmtypes.AgentIDToBytes(scAgentID)))
-	require.True(t, scAgentID == wasmtypes.AgentIDFromString(wasmtypes.AgentIDToString(scAgentID)))
-	require.EqualValues(t, scAgentID.Bytes(), agentID.Bytes())
-	require.EqualValues(t, scAgentID.String(), agentID.String())
+	checkAgentID(t, ctx, scAgentID, agentID)
 
 	// check agent id of NFT address (hname zero)
 	scAgentID = wasmtypes.NewScAgentIDFromAddress(scNftAddress)
 	agentID = iscp.NewAgentID(nftAddress)
-	require.True(t, scAgentID == wasmtypes.AgentIDFromBytes(wasmtypes.AgentIDToBytes(scAgentID)))
-	require.True(t, scAgentID == wasmtypes.AgentIDFromString(wasmtypes.AgentIDToString(scAgentID)))
-	require.EqualValues(t, scAgentID.Bytes(), agentID.Bytes())
-	require.EqualValues(t, scAgentID.String(), agentID.String())
+	checkAgentID(t, ctx, scAgentID, agentID)
 
 	// check agent id of contract (hname non-zero)
 	scAgentID = wasmtypes.NewScAgentID(scAliasAddress, testwasmlib.HScName)
 	agentID = iscp.NewContractAgentID(chainID, iscp.Hname(testwasmlib.HScName))
-	require.True(t, scAgentID == wasmtypes.AgentIDFromBytes(wasmtypes.AgentIDToBytes(scAgentID)))
-	require.True(t, scAgentID == wasmtypes.AgentIDFromString(wasmtypes.AgentIDToString(scAgentID)))
-	require.EqualValues(t, scAgentID.Bytes(), agentID.Bytes())
-	require.EqualValues(t, scAgentID.String(), agentID.String())
+	checkAgentID(t, ctx, scAgentID, agentID)
 
-	goInt8 := int8(math.MaxInt8)
-	require.Equal(t, goInt8, wasmtypes.Int8FromBytes(wasmtypes.Int8ToBytes(goInt8)))
-	require.Equal(t, goInt8, wasmtypes.Int8FromString(wasmtypes.Int8ToString(goInt8)))
-	goInt8 = math.MinInt8
-	require.Equal(t, goInt8, wasmtypes.Int8FromBytes(wasmtypes.Int8ToBytes(goInt8)))
-	require.Equal(t, goInt8, wasmtypes.Int8FromString(wasmtypes.Int8ToString(goInt8)))
-	goInt8 = 1
-	require.Equal(t, goInt8, wasmtypes.Int8FromBytes(wasmtypes.Int8ToBytes(goInt8)))
-	require.Equal(t, goInt8, wasmtypes.Int8FromString(wasmtypes.Int8ToString(goInt8)))
-	goInt8 = 0
-	require.Equal(t, goInt8, wasmtypes.Int8FromBytes(wasmtypes.Int8ToBytes(goInt8)))
-	require.Equal(t, goInt8, wasmtypes.Int8FromString(wasmtypes.Int8ToString(goInt8)))
-	goInt8 = -1
-	require.Equal(t, goInt8, wasmtypes.Int8FromBytes(wasmtypes.Int8ToBytes(goInt8)))
-	require.Equal(t, goInt8, wasmtypes.Int8FromString(wasmtypes.Int8ToString(goInt8)))
-	goUint8 := uint8(0)
-	require.Equal(t, goUint8, wasmtypes.Uint8FromBytes(wasmtypes.Uint8ToBytes(goUint8)))
-	require.Equal(t, goUint8, wasmtypes.Uint8FromString(wasmtypes.Uint8ToString(goUint8)))
-	goUint8 = math.MaxUint8
-	require.Equal(t, goUint8, wasmtypes.Uint8FromBytes(wasmtypes.Uint8ToBytes(goUint8)))
-	require.Equal(t, goUint8, wasmtypes.Uint8FromString(wasmtypes.Uint8ToString(goUint8)))
+	// check nil agent id
+	scAgentID = wasmtypes.ScAgentID{}
+	agentID = &iscp.NilAgentID{}
+	checkAgentID(t, ctx, scAgentID, agentID)
 
-	goInt16 := int16(math.MaxInt16)
-	require.Equal(t, goInt16, wasmtypes.Int16FromBytes(wasmtypes.Int16ToBytes(goInt16)))
-	require.Equal(t, goInt16, wasmtypes.Int16FromString(wasmtypes.Int16ToString(goInt16)))
-	goInt16 = math.MinInt16
-	require.Equal(t, goInt16, wasmtypes.Int16FromBytes(wasmtypes.Int16ToBytes(goInt16)))
-	require.Equal(t, goInt16, wasmtypes.Int16FromString(wasmtypes.Int16ToString(goInt16)))
-	goInt16 = 1
-	require.Equal(t, goInt16, wasmtypes.Int16FromBytes(wasmtypes.Int16ToBytes(goInt16)))
-	require.Equal(t, goInt16, wasmtypes.Int16FromString(wasmtypes.Int16ToString(goInt16)))
-	goInt16 = 0
-	require.Equal(t, goInt16, wasmtypes.Int16FromBytes(wasmtypes.Int16ToBytes(goInt16)))
-	require.Equal(t, goInt16, wasmtypes.Int16FromString(wasmtypes.Int16ToString(goInt16)))
-	goInt16 = -1
-	require.Equal(t, goInt16, wasmtypes.Int16FromBytes(wasmtypes.Int16ToBytes(goInt16)))
-	require.Equal(t, goInt16, wasmtypes.Int16FromString(wasmtypes.Int16ToString(goInt16)))
-	goUint16 := uint16(0)
-	require.Equal(t, goUint16, wasmtypes.Uint16FromBytes(wasmtypes.Uint16ToBytes(goUint16)))
-	require.Equal(t, goUint16, wasmtypes.Uint16FromString(wasmtypes.Uint16ToString(goUint16)))
-	goUint16 = math.MaxUint16
-	require.Equal(t, goUint16, wasmtypes.Uint16FromBytes(wasmtypes.Uint16ToBytes(goUint16)))
-	require.Equal(t, goUint16, wasmtypes.Uint16FromString(wasmtypes.Uint16ToString(goUint16)))
+	// eth
+	addressEth := "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
+	checkerEth := testwasmlib.ScFuncs.CheckEthAddressAndAgentID(ctx)
+	checkerEth.Params.EthAddress().SetValue(addressEth)
+	checkerEth.Func.Call()
+	require.NoError(t, ctx.Err)
 
-	goInt32 := int32(math.MaxInt32)
-	require.Equal(t, goInt32, wasmtypes.Int32FromBytes(wasmtypes.Int32ToBytes(goInt32)))
-	require.Equal(t, goInt32, wasmtypes.Int32FromString(wasmtypes.Int32ToString(goInt32)))
-	goInt32 = math.MinInt32
-	require.Equal(t, goInt32, wasmtypes.Int32FromBytes(wasmtypes.Int32ToBytes(goInt32)))
-	require.Equal(t, goInt32, wasmtypes.Int32FromString(wasmtypes.Int32ToString(goInt32)))
-	goInt32 = 1
-	require.Equal(t, goInt32, wasmtypes.Int32FromBytes(wasmtypes.Int32ToBytes(goInt32)))
-	require.Equal(t, goInt32, wasmtypes.Int32FromString(wasmtypes.Int32ToString(goInt32)))
-	goInt32 = 0
-	require.Equal(t, goInt32, wasmtypes.Int32FromBytes(wasmtypes.Int32ToBytes(goInt32)))
-	require.Equal(t, goInt32, wasmtypes.Int32FromString(wasmtypes.Int32ToString(goInt32)))
-	goInt32 = -1
-	require.Equal(t, goInt32, wasmtypes.Int32FromBytes(wasmtypes.Int32ToBytes(goInt32)))
-	require.Equal(t, goInt32, wasmtypes.Int32FromString(wasmtypes.Int32ToString(goInt32)))
-	goUint32 := uint32(0)
-	require.Equal(t, goUint32, wasmtypes.Uint32FromBytes(wasmtypes.Uint32ToBytes(goUint32)))
-	require.Equal(t, goUint32, wasmtypes.Uint32FromString(wasmtypes.Uint32ToString(goUint32)))
-	goUint32 = math.MaxUint32
-	require.Equal(t, goUint32, wasmtypes.Uint32FromBytes(wasmtypes.Uint32ToBytes(goUint32)))
-	require.Equal(t, goUint32, wasmtypes.Uint32FromString(wasmtypes.Uint32ToString(goUint32)))
-
-	goInt64 := int64(math.MaxInt64)
-	require.Equal(t, goInt64, wasmtypes.Int64FromBytes(wasmtypes.Int64ToBytes(goInt64)))
-	require.Equal(t, goInt64, wasmtypes.Int64FromString(wasmtypes.Int64ToString(goInt64)))
-	goInt64 = math.MinInt64
-	require.Equal(t, goInt64, wasmtypes.Int64FromBytes(wasmtypes.Int64ToBytes(goInt64)))
-	require.Equal(t, goInt64, wasmtypes.Int64FromString(wasmtypes.Int64ToString(goInt64)))
-	goInt64 = 1
-	require.Equal(t, goInt64, wasmtypes.Int64FromBytes(wasmtypes.Int64ToBytes(goInt64)))
-	require.Equal(t, goInt64, wasmtypes.Int64FromString(wasmtypes.Int64ToString(goInt64)))
-	goInt64 = 0
-	require.Equal(t, goInt64, wasmtypes.Int64FromBytes(wasmtypes.Int64ToBytes(goInt64)))
-	require.Equal(t, goInt64, wasmtypes.Int64FromString(wasmtypes.Int64ToString(goInt64)))
-	goInt64 = -1
-	require.Equal(t, goInt64, wasmtypes.Int64FromBytes(wasmtypes.Int64ToBytes(goInt64)))
-	require.Equal(t, goInt64, wasmtypes.Int64FromString(wasmtypes.Int64ToString(goInt64)))
-	goUint64 := uint64(0)
-	require.Equal(t, goUint64, wasmtypes.Uint64FromBytes(wasmtypes.Uint64ToBytes(goUint64)))
-	require.Equal(t, goUint64, wasmtypes.Uint64FromString(wasmtypes.Uint64ToString(goUint64)))
-	goUint64 = math.MaxUint64
-	require.Equal(t, goUint64, wasmtypes.Uint64FromBytes(wasmtypes.Uint64ToBytes(goUint64)))
-	require.Equal(t, goUint64, wasmtypes.Uint64FromString(wasmtypes.Uint64ToString(goUint64)))
+	// check int types and uint types
+	checkerIntAndUint := testwasmlib.ScFuncs.CheckIntAndUint(ctx)
+	checkerIntAndUint.Func.Call()
+	require.NoError(t, ctx.Err)
 
 	scBigInt := wasmtypes.NewScBigInt(123213)
-	goBigInt := big.NewInt(123213)
+	bigInt := big.NewInt(123213)
+	checkBigInt(t, ctx, scBigInt, bigInt)
+
+	checkerBool := testwasmlib.ScFuncs.CheckBool(ctx)
+	checkerBool.Func.Call()
+	require.NoError(t, ctx.Err)
+
+	checkerBytes := testwasmlib.ScFuncs.CheckBytes(ctx)
+	length := 100
+	byteData := make([]byte, length)
+	for i := 0; i < length; i++ {
+		byteData[i] = byte(rand.Intn(256))
+	}
+	checkerBytes.Params.Bytes().SetValue(byteData)
+	checkerBytes.Func.Call()
+	require.NoError(t, ctx.Err)
+
+	hashString := "7c106d42ca17fdbfb03f6b45b91effcef2cff61215a3552dbc1ab8fd46817719"
+	hash, err := hashing.HashValueFromHex(hashString)
+	require.NoError(t, err)
+	scHash := wasmtypes.HashFromString(hashString)
+	checkHash(t, ctx, scHash, hash)
+
+	scHname := testwasmlib.HScName
+	checkerHname := testwasmlib.ScFuncs.CheckHname(ctx)
+	checkerHname.Params.ScHname().SetValue(scHname)
+	checkerHname.Params.HnameBytes().SetValue(scHname.Bytes())
+	checkerHname.Params.HnameString().SetValue(scHname.String())
+	checkerHname.Func.Call()
+	require.NoError(t, ctx.Err)
+
+	checkerString := testwasmlib.ScFuncs.CheckString(ctx)
+	stringData := "this is a go string example"
+	checkerString.Params.String().SetValue(stringData)
+	checkerString.Func.Call()
+	require.NoError(t, ctx.Err)
+
+	tokenID, err := getTokenID(ctx)
+	require.NoError(t, err)
+	scTokenID := ctx.Cvt.ScTokenID(&tokenID)
+	checkTokenID(t, ctx, scTokenID, tokenID)
+
+	nftID, err := getNftID(ctx)
+	require.NoError(t, err)
+	scNftID := ctx.Cvt.ScNftID(&nftID)
+	checkNftID(t, ctx, scNftID, nftID)
+
+	blockNum := uint32(3)
+	ctxBlocklog := ctx.SoloContextForCore(t, coreblocklog.ScName, coreblocklog.OnLoad)
+	require.NoError(t, ctxBlocklog.Err)
+	fblocklog := coreblocklog.ScFuncs.GetRequestIDsForBlock(ctxBlocklog)
+	fblocklog.Params.BlockIndex().SetValue(blockNum)
+	fblocklog.Func.Call()
+	scReq := fblocklog.Results.RequestID().GetRequestID(0).Value()
+	req := ctxBlocklog.Chain.GetRequestIDsForBlock(blockNum)[0]
+	checkRequestID(t, ctx, scReq, req)
+}
+
+func getTokenID(ctx *wasmsolo.SoloContext) (tokenID iotago.NativeTokenID, err error) {
+	maxSupply := 100
+	fp := ctx.Chain.NewFoundryParams(ctx.Cvt.ToBigInt(maxSupply))
+	_, tokenID, err = fp.CreateFoundry()
+	if err != nil {
+		return iotago.NativeTokenID{}, err
+	}
+	return tokenID, nil
+}
+
+func getNftID(ctx *wasmsolo.SoloContext) (iotago.NFTID, error) {
+	agent := ctx.NewSoloAgent()
+	addr, ok := iscp.AddressFromAgentID(agent.AgentID())
+	if !ok {
+		return iotago.NFTID{}, fmt.Errorf("can't get address from AgentID")
+	}
+	_, nftInfo, err := ctx.Chain.Env.MintNFTL1(agent.Pair, addr, []byte("test data"))
+	if err != nil {
+		return iotago.NFTID{}, err
+	}
+	return nftInfo.NFTID, nil
+}
+
+func checkBigInt(t *testing.T, ctx *wasmsolo.SoloContext, scBigInt wasmtypes.ScBigInt, bigInt *big.Int) {
 	require.Equal(t, scBigInt, wasmtypes.BigIntFromBytes(wasmtypes.BigIntToBytes(scBigInt)))
-	require.Equal(t, goBigInt.Bytes(), scBigInt.Bytes())
+	require.Equal(t, bigInt.Bytes(), scBigInt.Bytes())
 	require.Equal(t, scBigInt, wasmtypes.BigIntFromString(wasmtypes.BigIntToString(scBigInt)))
-	require.Equal(t, goBigInt.String(), scBigInt.String())
+	require.Equal(t, bigInt.String(), scBigInt.String())
 
-	goBool := true
-	require.Equal(t, goBool, wasmtypes.BoolFromBytes(wasmtypes.BoolToBytes(goBool)))
-	require.Equal(t, goBool, wasmtypes.BoolFromString(wasmtypes.BoolToString(goBool)))
-	goBool = false
-	require.Equal(t, goBool, wasmtypes.BoolFromBytes(wasmtypes.BoolToBytes(goBool)))
-	require.Equal(t, goBool, wasmtypes.BoolFromString(wasmtypes.BoolToString(goBool)))
+	bigIntBytes := bigInt.Bytes()
+	bigIntString := bigInt.String()
+	checker := testwasmlib.ScFuncs.CheckBigInt(ctx)
+	checker.Params.ScBigInt().SetValue(scBigInt)
+	checker.Params.BigIntBytes().SetValue(bigIntBytes)
+	checker.Params.BigIntString().SetValue(bigIntString)
+	checker.Func.Call()
+	require.NoError(t, ctx.Err, fmt.Sprintf("scBigInt: %s, bigInt: %s", scBigInt.String(), bigInt.String()))
+}
 
-	goBytes := []byte{0xc3, 0x77, 0xf3, 0xf1}
-	require.Equal(t, goBytes, wasmtypes.BytesFromBytes(wasmtypes.BytesToBytes(goBytes)))
-	require.Equal(t, goBytes, wasmtypes.BytesFromString(wasmtypes.BytesToString(goBytes)))
+//nolint:dupl
+func checkAgentID(t *testing.T, ctx *wasmsolo.SoloContext, scAgentID wasmtypes.ScAgentID, agentID iscp.AgentID) {
+	agentBytes := agentID.Bytes()
+	agentString := agentID.String()
 
-	base58Hash := "EWwNqZ8At5o9jV2Yqp7ajPxdSjzHVY6MmerKF3Z42rZy"
-	require.Equal(t, base58Hash, wasmtypes.HashToString(wasmtypes.HashFromString(base58Hash)))
-	require.Equal(t, base58Hash, wasmtypes.HashFromString(base58Hash).String())
-	byteHash := []byte{0xc8, 0xd3, 0x41, 0xd8, 0xb5, 0x66, 0x92, 0x1b, 0xb3, 0x0c, 0xf6, 0xbe, 0x4d, 0xd9, 0x41, 0xca, 0x7c, 0xe0, 0x60, 0xff, 0xb6, 0x39, 0x1d, 0x5d, 0x34, 0xd2, 0x61, 0x38, 0xb2, 0xf7, 0x40, 0x34}
-	require.Equal(t, byteHash, wasmtypes.HashToBytes(wasmtypes.HashFromBytes(byteHash)))
-	require.Equal(t, byteHash, wasmtypes.HashFromBytes(byteHash).Bytes())
+	require.EqualValues(t, scAgentID.Bytes(), agentBytes)
+	require.EqualValues(t, scAgentID.String(), agentString)
+	require.True(t, scAgentID == wasmtypes.AgentIDFromBytes(wasmtypes.AgentIDToBytes(scAgentID)))
+	require.True(t, scAgentID == wasmtypes.AgentIDFromString(wasmtypes.AgentIDToString(scAgentID)))
 
-	scHname := wasmtypes.ScHname(1231231)
-	require.Equal(t, scHname, wasmtypes.HnameFromString(wasmtypes.HnameToString(scHname)))
-	require.Equal(t, scHname.String(), wasmtypes.HnameToString(scHname))
-	require.Equal(t, scHname, wasmtypes.HnameFromBytes(wasmtypes.HnameToBytes(scHname)))
-	require.Equal(t, scHname.Bytes(), wasmtypes.HnameToBytes(scHname))
+	checker := testwasmlib.ScFuncs.CheckAgentID(ctx)
+	checker.Params.ScAgentID().SetValue(scAgentID)
+	checker.Params.AgentBytes().SetValue(agentBytes)
+	checker.Params.AgentString().SetValue(agentString)
+	checker.Func.Call()
+	require.NoError(t, ctx.Err)
+}
 
-	base58RequestID := "JPP5jbApWDwvCFBNrVtqSqEPqZRPe9bYPWCKQ8o2HmfiUo"
-	require.Equal(t, base58RequestID, wasmtypes.RequestIDToString(wasmtypes.RequestIDFromString(base58RequestID)))
-	require.Equal(t, base58RequestID, wasmtypes.RequestIDFromString(base58RequestID).String())
-	byteRequestID := []byte{0x0d, 0x42, 0x83, 0x18, 0x0d, 0xb6, 0x11, 0x20, 0xad, 0x43, 0x79, 0xe2, 0xdc, 0x4a, 0x15, 0x6f, 0x0c, 0x7b, 0x24, 0x3b, 0x45, 0x2e, 0x4a, 0xc1, 0xd0, 0x31, 0x6c, 0x33, 0x63, 0xe0, 0x2b, 0x64, 0x12, 0x00}
-	require.Equal(t, byteRequestID, wasmtypes.RequestIDToBytes(wasmtypes.RequestIDFromBytes(byteRequestID)))
-	require.Equal(t, byteRequestID, wasmtypes.RequestIDFromBytes(byteRequestID).Bytes())
+func checkAddress(t *testing.T, ctx *wasmsolo.SoloContext, scAddress wasmtypes.ScAddress, address iotago.Address) {
+	addressBytes := iscp.BytesFromAddress(address)
+	addressString := address.Bech32(parameters.L1.Protocol.Bech32HRP)
 
-	goString := "this is a go string example"
-	require.Equal(t, goString, wasmtypes.StringToString(wasmtypes.StringFromString(goString)))
-	require.Equal(t, []byte(goString), wasmtypes.StringToBytes(wasmtypes.StringFromBytes([]byte(goString))))
+	require.EqualValues(t, scAddress.Bytes(), addressBytes)
+	require.EqualValues(t, scAddress.String(), addressString)
+	require.True(t, scAddress == wasmtypes.AddressFromBytes(wasmtypes.AddressToBytes(scAddress)))
+	require.True(t, scAddress == wasmtypes.AddressFromString(wasmtypes.AddressToString(scAddress)))
 
-	base58TokenID := "Vv68WiBtnqeVUZrBd8S7PG5RbwWDVPgGfi47Xnb5bYmNsnGVJw6h"
-	require.Equal(t, base58TokenID, wasmtypes.TokenIDToString(wasmtypes.TokenIDFromString(base58TokenID)))
-	require.Equal(t, base58TokenID, wasmtypes.TokenIDFromString(base58TokenID).String())
-	byteTokenID := []byte{0xc3, 0x77, 0xf3, 0xf1, 0xea, 0x0f, 0x57, 0x13, 0x4d, 0x64, 0x4f, 0x2f, 0x29, 0x1d, 0x49, 0xf4, 0x8b, 0x11, 0x6d, 0x68, 0x17, 0x4f, 0x73, 0xec, 0x13, 0x09, 0xdd, 0x85, 0xb0, 0x09, 0xea, 0x85, 0xdb, 0x80, 0x26, 0x6a, 0x94, 0xea}
-	require.Equal(t, byteTokenID, wasmtypes.TokenIDToBytes(wasmtypes.TokenIDFromBytes(byteTokenID)))
-	require.Equal(t, byteTokenID, wasmtypes.TokenIDFromBytes(byteTokenID).Bytes())
+	checker := testwasmlib.ScFuncs.CheckAddress(ctx)
+	checker.Params.ScAddress().SetValue(scAddress)
+	checker.Params.AddressBytes().SetValue(addressBytes)
+	checker.Params.AddressString().SetValue(addressString)
+	checker.Func.Call()
+	require.NoError(t, ctx.Err)
+}
+
+//nolint:dupl
+func checkHash(t *testing.T, ctx *wasmsolo.SoloContext, scHash wasmtypes.ScHash, hash hashing.HashValue) {
+	hashBytes := hash.Bytes()
+	hashString := hash.String()
+
+	require.EqualValues(t, scHash.Bytes(), hashBytes)
+	require.EqualValues(t, scHash.String(), hashString)
+	require.True(t, scHash == wasmtypes.HashFromBytes(wasmtypes.HashToBytes(scHash)))
+	require.True(t, scHash == wasmtypes.HashFromString(wasmtypes.HashToString(scHash)))
+
+	checker := testwasmlib.ScFuncs.CheckHash(ctx)
+	checker.Params.ScHash().SetValue(scHash)
+	checker.Params.HashBytes().SetValue(hashBytes)
+	checker.Params.HashString().SetValue(hashString)
+	checker.Func.Call()
+	require.NoError(t, ctx.Err)
+}
+
+//nolint:dupl
+func checkNftID(t *testing.T, ctx *wasmsolo.SoloContext, scNftID wasmtypes.ScNftID, nftID iotago.NFTID) {
+	nftIDBytes := nftID[:]
+	nftIDString := nftID.String()
+	require.Equal(t, scNftID, wasmtypes.NftIDFromString(wasmtypes.NftIDToString(scNftID)))
+	require.Equal(t, scNftID, wasmtypes.NftIDFromBytes(wasmtypes.NftIDToBytes(scNftID)))
+	require.Equal(t, scNftID.String(), nftID.String())
+	require.Equal(t, scNftID.Bytes(), nftID[:])
+
+	checker := testwasmlib.ScFuncs.CheckNftID(ctx)
+	checker.Params.ScNftID().SetValue(scNftID)
+	checker.Params.NftIDBytes().SetValue(nftIDBytes)
+	checker.Params.NftIDString().SetValue(nftIDString)
+	checker.Func.Call()
+	require.NoError(t, ctx.Err)
+}
+
+//nolint:dupl
+func checkTokenID(t *testing.T, ctx *wasmsolo.SoloContext, scTokenID wasmtypes.ScTokenID, tokenID iotago.NativeTokenID) {
+	tokenIDBytes := tokenID[:]
+	tokenIDString := tokenID.String()
+
+	require.Equal(t, scTokenID, wasmtypes.TokenIDFromString(wasmtypes.TokenIDToString(scTokenID)))
+	require.Equal(t, scTokenID, wasmtypes.TokenIDFromBytes(wasmtypes.TokenIDToBytes(scTokenID)))
+	require.Equal(t, scTokenID.String(), tokenID.String())
+	require.Equal(t, scTokenID.Bytes(), tokenID[:])
+
+	checker := testwasmlib.ScFuncs.CheckTokenID(ctx)
+	checker.Params.ScTokenID().SetValue(scTokenID)
+	checker.Params.TokenIDBytes().SetValue(tokenIDBytes)
+	checker.Params.TokenIDString().SetValue(tokenIDString)
+	checker.Func.Call()
+	require.NoError(t, ctx.Err)
+}
+
+func checkRequestID(t *testing.T, ctx *wasmsolo.SoloContext, scRequestID wasmtypes.ScRequestID, requestID iscp.RequestID) {
+	requestIDBytes := requestID.Bytes()
+	requestIDString := requestID.String()
+
+	require.Equal(t, scRequestID, wasmtypes.RequestIDFromBytes(wasmtypes.RequestIDToBytes(scRequestID)))
+	require.Equal(t, scRequestID, wasmtypes.RequestIDFromString(wasmtypes.RequestIDToString(scRequestID)))
+	require.Equal(t, scRequestID.Bytes(), requestID.Bytes())
+	require.Equal(t, scRequestID.String(), requestID.String())
+
+	checker := testwasmlib.ScFuncs.CheckRequestID(ctx)
+	checker.Params.ScRequestID().SetValue(scRequestID)
+	checker.Params.RequestIDBytes().SetValue(requestIDBytes)
+	checker.Params.RequestIDString().SetValue(requestIDString)
+	checker.Func.Call()
+	require.NoError(t, ctx.Err)
 }

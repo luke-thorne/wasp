@@ -10,6 +10,7 @@ import (
 	"os"
 
 	iotago "github.com/iotaledger/iota.go/v3"
+	"github.com/iotaledger/trie.go/trie"
 	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/packages/hashing"
 	"github.com/iotaledger/wasp/packages/iscp"
@@ -19,7 +20,6 @@ import (
 	"github.com/iotaledger/wasp/packages/kv/collections"
 	"github.com/iotaledger/wasp/packages/kv/dict"
 	"github.com/iotaledger/wasp/packages/kv/kvdecoder"
-	"github.com/iotaledger/wasp/packages/kv/trie"
 	"github.com/iotaledger/wasp/packages/vm"
 	"github.com/iotaledger/wasp/packages/vm/core/blob"
 	"github.com/iotaledger/wasp/packages/vm/core/blocklog"
@@ -29,7 +29,6 @@ import (
 	"github.com/iotaledger/wasp/packages/vm/gas"
 	"github.com/iotaledger/wasp/packages/vm/vmtypes"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/xerrors"
 )
 
 // String is string representation for main parameters of the chain
@@ -135,7 +134,7 @@ func (ch *Chain) UploadBlob(user *cryptolib.KeyPair, params ...interface{}) (ret
 	}
 	resBin := res.MustGet(blob.ParamHash)
 	if resBin == nil {
-		err = xerrors.Errorf("internal error: no hash returned")
+		err = fmt.Errorf("internal error: no hash returned")
 		return
 	}
 	ret, err = codec.DecodeHashValue(resBin)
@@ -147,7 +146,7 @@ func (ch *Chain) UploadBlob(user *cryptolib.KeyPair, params ...interface{}) (ret
 }
 
 // UploadBlobFromFile uploads blob from file data in the specified blob field plus optional other fields
-func (ch *Chain) UploadBlobFromFile(keyPair *cryptolib.KeyPair, fileName string, fieldName string, params ...interface{}) (hashing.HashValue, error) {
+func (ch *Chain) UploadBlobFromFile(keyPair *cryptolib.KeyPair, fileName, fieldName string, params ...interface{}) (hashing.HashValue, error) {
 	fileBinary, err := os.ReadFile(fileName)
 	if err != nil {
 		return hashing.HashValue{}, err
@@ -488,7 +487,7 @@ func (ch *Chain) GetControlAddresses() *blocklog.ControlAddresses {
 func (ch *Chain) AddAllowedStateController(addr iotago.Address, keyPair *cryptolib.KeyPair) error {
 	req := NewCallParams(coreutil.CoreContractGovernance, governance.FuncAddAllowedStateControllerAddress.Name,
 		governance.ParamStateControllerAddress, addr,
-	)
+	).WithMaxAffordableGasBudget()
 	_, err := ch.PostRequestSync(req, keyPair)
 	return err
 }
@@ -497,7 +496,7 @@ func (ch *Chain) AddAllowedStateController(addr iotago.Address, keyPair *cryptol
 func (ch *Chain) RemoveAllowedStateController(addr iotago.Address, keyPair *cryptolib.KeyPair) error {
 	req := NewCallParams(coreutil.CoreContractGovernance, governance.FuncRemoveAllowedStateControllerAddress.Name,
 		governance.ParamStateControllerAddress, addr,
-	)
+	).WithMaxAffordableGasBudget()
 	_, err := ch.PostRequestSync(req, keyPair)
 	return err
 }
@@ -525,13 +524,13 @@ func (ch *Chain) GetAllowedStateControllerAddresses() []iotago.Address {
 func (ch *Chain) RotateStateController(newStateAddr iotago.Address, newStateKeyPair, ownerKeyPair *cryptolib.KeyPair) error {
 	req := NewCallParams(coreutil.CoreContractGovernance, coreutil.CoreEPRotateStateController,
 		coreutil.ParamStateControllerAddress, newStateAddr,
-	).AddIotas(1)
+	).WithMaxAffordableGasBudget()
 	result := ch.postRequestSyncTxSpecial(req, ownerKeyPair)
-	if result.Error == nil {
+	if result.Receipt.Error == nil {
 		ch.StateControllerAddress = newStateAddr
 		ch.StateControllerKeyPair = newStateKeyPair
 	}
-	return result.Error
+	return ch.ResolveVMError(result.Receipt.Error).AsGoError()
 }
 
 func (ch *Chain) postRequestSyncTxSpecial(req *CallParams, keyPair *cryptolib.KeyPair) *vm.RequestResult {
@@ -539,7 +538,7 @@ func (ch *Chain) postRequestSyncTxSpecial(req *CallParams, keyPair *cryptolib.Ke
 	require.NoError(ch.Env.T, err)
 	reqs, err := ch.Env.RequestsForChain(tx, ch.ChainID)
 	require.NoError(ch.Env.T, err)
-	results := ch.runRequestsSync(reqs, "postSpecial")
+	results := ch.RunRequestsSync(reqs, "postSpecial")
 	return results[0]
 }
 

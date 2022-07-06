@@ -398,6 +398,10 @@ impl ImmutableParamTypesParams {
 		ScImmutableAgentID::new(self.proxy.root(PARAM_AGENT_ID))
 	}
 
+    pub fn big_int(&self) -> ScImmutableBigInt {
+		ScImmutableBigInt::new(self.proxy.root(PARAM_BIG_INT))
+	}
+
     pub fn bool(&self) -> ScImmutableBool {
 		ScImmutableBool::new(self.proxy.root(PARAM_BOOL))
 	}
@@ -499,6 +503,10 @@ impl MutableParamTypesParams {
 
     pub fn agent_id(&self) -> ScMutableAgentID {
 		ScMutableAgentID::new(self.proxy.root(PARAM_AGENT_ID))
+	}
+
+    pub fn big_int(&self) -> ScMutableBigInt {
+		ScMutableBigInt::new(self.proxy.root(PARAM_BIG_INT))
 	}
 
     pub fn bool(&self) -> ScMutableBool {
@@ -1216,6 +1224,376 @@ pub struct MutableBlockRecordsParams {
 impl MutableBlockRecordsParams {
     pub fn block_index(&self) -> ScMutableUint32 {
 		ScMutableUint32::new(self.proxy.root(PARAM_BLOCK_INDEX))
+	}
+}
+
+#[derive(Clone)]
+pub struct ImmutableCheckAddressParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl ImmutableCheckAddressParams {
+    pub fn address_bytes(&self) -> ScImmutableBytes {
+		ScImmutableBytes::new(self.proxy.root(PARAM_ADDRESS_BYTES))
+	}
+
+    pub fn address_string(&self) -> ScImmutableString {
+		ScImmutableString::new(self.proxy.root(PARAM_ADDRESS_STRING))
+	}
+
+    pub fn sc_address(&self) -> ScImmutableAddress {
+		ScImmutableAddress::new(self.proxy.root(PARAM_SC_ADDRESS))
+	}
+}
+
+#[derive(Clone)]
+pub struct MutableCheckAddressParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl MutableCheckAddressParams {
+    pub fn address_bytes(&self) -> ScMutableBytes {
+		ScMutableBytes::new(self.proxy.root(PARAM_ADDRESS_BYTES))
+	}
+
+    pub fn address_string(&self) -> ScMutableString {
+		ScMutableString::new(self.proxy.root(PARAM_ADDRESS_STRING))
+	}
+
+    pub fn sc_address(&self) -> ScMutableAddress {
+		ScMutableAddress::new(self.proxy.root(PARAM_SC_ADDRESS))
+	}
+}
+
+#[derive(Clone)]
+pub struct ImmutableCheckAgentIDParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl ImmutableCheckAgentIDParams {
+    pub fn agent_bytes(&self) -> ScImmutableBytes {
+		ScImmutableBytes::new(self.proxy.root(PARAM_AGENT_BYTES))
+	}
+
+    pub fn agent_string(&self) -> ScImmutableString {
+		ScImmutableString::new(self.proxy.root(PARAM_AGENT_STRING))
+	}
+
+    pub fn sc_agent_id(&self) -> ScImmutableAgentID {
+		ScImmutableAgentID::new(self.proxy.root(PARAM_SC_AGENT_ID))
+	}
+}
+
+#[derive(Clone)]
+pub struct MutableCheckAgentIDParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl MutableCheckAgentIDParams {
+    pub fn agent_bytes(&self) -> ScMutableBytes {
+		ScMutableBytes::new(self.proxy.root(PARAM_AGENT_BYTES))
+	}
+
+    pub fn agent_string(&self) -> ScMutableString {
+		ScMutableString::new(self.proxy.root(PARAM_AGENT_STRING))
+	}
+
+    pub fn sc_agent_id(&self) -> ScMutableAgentID {
+		ScMutableAgentID::new(self.proxy.root(PARAM_SC_AGENT_ID))
+	}
+}
+
+#[derive(Clone)]
+pub struct ImmutableCheckBigIntParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl ImmutableCheckBigIntParams {
+    pub fn big_int_bytes(&self) -> ScImmutableBytes {
+		ScImmutableBytes::new(self.proxy.root(PARAM_BIG_INT_BYTES))
+	}
+
+    pub fn big_int_string(&self) -> ScImmutableString {
+		ScImmutableString::new(self.proxy.root(PARAM_BIG_INT_STRING))
+	}
+
+    pub fn sc_big_int(&self) -> ScImmutableBigInt {
+		ScImmutableBigInt::new(self.proxy.root(PARAM_SC_BIG_INT))
+	}
+}
+
+#[derive(Clone)]
+pub struct MutableCheckBigIntParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl MutableCheckBigIntParams {
+    pub fn big_int_bytes(&self) -> ScMutableBytes {
+		ScMutableBytes::new(self.proxy.root(PARAM_BIG_INT_BYTES))
+	}
+
+    pub fn big_int_string(&self) -> ScMutableString {
+		ScMutableString::new(self.proxy.root(PARAM_BIG_INT_STRING))
+	}
+
+    pub fn sc_big_int(&self) -> ScMutableBigInt {
+		ScMutableBigInt::new(self.proxy.root(PARAM_SC_BIG_INT))
+	}
+}
+
+#[derive(Clone)]
+pub struct ImmutableCheckBytesParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl ImmutableCheckBytesParams {
+    pub fn bytes(&self) -> ScImmutableBytes {
+		ScImmutableBytes::new(self.proxy.root(PARAM_BYTES))
+	}
+}
+
+#[derive(Clone)]
+pub struct MutableCheckBytesParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl MutableCheckBytesParams {
+    pub fn bytes(&self) -> ScMutableBytes {
+		ScMutableBytes::new(self.proxy.root(PARAM_BYTES))
+	}
+}
+
+#[derive(Clone)]
+pub struct ImmutableCheckEthAddressAndAgentIDParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl ImmutableCheckEthAddressAndAgentIDParams {
+    pub fn eth_address(&self) -> ScImmutableString {
+		ScImmutableString::new(self.proxy.root(PARAM_ETH_ADDRESS))
+	}
+}
+
+#[derive(Clone)]
+pub struct MutableCheckEthAddressAndAgentIDParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl MutableCheckEthAddressAndAgentIDParams {
+    pub fn eth_address(&self) -> ScMutableString {
+		ScMutableString::new(self.proxy.root(PARAM_ETH_ADDRESS))
+	}
+}
+
+#[derive(Clone)]
+pub struct ImmutableCheckHashParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl ImmutableCheckHashParams {
+    pub fn hash_bytes(&self) -> ScImmutableBytes {
+		ScImmutableBytes::new(self.proxy.root(PARAM_HASH_BYTES))
+	}
+
+    pub fn hash_string(&self) -> ScImmutableString {
+		ScImmutableString::new(self.proxy.root(PARAM_HASH_STRING))
+	}
+
+    pub fn sc_hash(&self) -> ScImmutableHash {
+		ScImmutableHash::new(self.proxy.root(PARAM_SC_HASH))
+	}
+}
+
+#[derive(Clone)]
+pub struct MutableCheckHashParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl MutableCheckHashParams {
+    pub fn hash_bytes(&self) -> ScMutableBytes {
+		ScMutableBytes::new(self.proxy.root(PARAM_HASH_BYTES))
+	}
+
+    pub fn hash_string(&self) -> ScMutableString {
+		ScMutableString::new(self.proxy.root(PARAM_HASH_STRING))
+	}
+
+    pub fn sc_hash(&self) -> ScMutableHash {
+		ScMutableHash::new(self.proxy.root(PARAM_SC_HASH))
+	}
+}
+
+#[derive(Clone)]
+pub struct ImmutableCheckHnameParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl ImmutableCheckHnameParams {
+    pub fn hname_bytes(&self) -> ScImmutableBytes {
+		ScImmutableBytes::new(self.proxy.root(PARAM_HNAME_BYTES))
+	}
+
+    pub fn hname_string(&self) -> ScImmutableString {
+		ScImmutableString::new(self.proxy.root(PARAM_HNAME_STRING))
+	}
+
+    pub fn sc_hname(&self) -> ScImmutableHname {
+		ScImmutableHname::new(self.proxy.root(PARAM_SC_HNAME))
+	}
+}
+
+#[derive(Clone)]
+pub struct MutableCheckHnameParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl MutableCheckHnameParams {
+    pub fn hname_bytes(&self) -> ScMutableBytes {
+		ScMutableBytes::new(self.proxy.root(PARAM_HNAME_BYTES))
+	}
+
+    pub fn hname_string(&self) -> ScMutableString {
+		ScMutableString::new(self.proxy.root(PARAM_HNAME_STRING))
+	}
+
+    pub fn sc_hname(&self) -> ScMutableHname {
+		ScMutableHname::new(self.proxy.root(PARAM_SC_HNAME))
+	}
+}
+
+#[derive(Clone)]
+pub struct ImmutableCheckNftIDParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl ImmutableCheckNftIDParams {
+    pub fn nft_id_bytes(&self) -> ScImmutableBytes {
+		ScImmutableBytes::new(self.proxy.root(PARAM_NFT_ID_BYTES))
+	}
+
+    pub fn nft_id_string(&self) -> ScImmutableString {
+		ScImmutableString::new(self.proxy.root(PARAM_NFT_ID_STRING))
+	}
+
+    pub fn sc_nft_id(&self) -> ScImmutableNftID {
+		ScImmutableNftID::new(self.proxy.root(PARAM_SC_NFT_ID))
+	}
+}
+
+#[derive(Clone)]
+pub struct MutableCheckNftIDParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl MutableCheckNftIDParams {
+    pub fn nft_id_bytes(&self) -> ScMutableBytes {
+		ScMutableBytes::new(self.proxy.root(PARAM_NFT_ID_BYTES))
+	}
+
+    pub fn nft_id_string(&self) -> ScMutableString {
+		ScMutableString::new(self.proxy.root(PARAM_NFT_ID_STRING))
+	}
+
+    pub fn sc_nft_id(&self) -> ScMutableNftID {
+		ScMutableNftID::new(self.proxy.root(PARAM_SC_NFT_ID))
+	}
+}
+
+#[derive(Clone)]
+pub struct ImmutableCheckRequestIDParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl ImmutableCheckRequestIDParams {
+    pub fn request_id_bytes(&self) -> ScImmutableBytes {
+		ScImmutableBytes::new(self.proxy.root(PARAM_REQUEST_ID_BYTES))
+	}
+
+    pub fn request_id_string(&self) -> ScImmutableString {
+		ScImmutableString::new(self.proxy.root(PARAM_REQUEST_ID_STRING))
+	}
+
+    pub fn sc_request_id(&self) -> ScImmutableRequestID {
+		ScImmutableRequestID::new(self.proxy.root(PARAM_SC_REQUEST_ID))
+	}
+}
+
+#[derive(Clone)]
+pub struct MutableCheckRequestIDParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl MutableCheckRequestIDParams {
+    pub fn request_id_bytes(&self) -> ScMutableBytes {
+		ScMutableBytes::new(self.proxy.root(PARAM_REQUEST_ID_BYTES))
+	}
+
+    pub fn request_id_string(&self) -> ScMutableString {
+		ScMutableString::new(self.proxy.root(PARAM_REQUEST_ID_STRING))
+	}
+
+    pub fn sc_request_id(&self) -> ScMutableRequestID {
+		ScMutableRequestID::new(self.proxy.root(PARAM_SC_REQUEST_ID))
+	}
+}
+
+#[derive(Clone)]
+pub struct ImmutableCheckStringParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl ImmutableCheckStringParams {
+    pub fn string(&self) -> ScImmutableString {
+		ScImmutableString::new(self.proxy.root(PARAM_STRING))
+	}
+}
+
+#[derive(Clone)]
+pub struct MutableCheckStringParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl MutableCheckStringParams {
+    pub fn string(&self) -> ScMutableString {
+		ScMutableString::new(self.proxy.root(PARAM_STRING))
+	}
+}
+
+#[derive(Clone)]
+pub struct ImmutableCheckTokenIDParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl ImmutableCheckTokenIDParams {
+    pub fn sc_token_id(&self) -> ScImmutableTokenID {
+		ScImmutableTokenID::new(self.proxy.root(PARAM_SC_TOKEN_ID))
+	}
+
+    pub fn token_id_bytes(&self) -> ScImmutableBytes {
+		ScImmutableBytes::new(self.proxy.root(PARAM_TOKEN_ID_BYTES))
+	}
+
+    pub fn token_id_string(&self) -> ScImmutableString {
+		ScImmutableString::new(self.proxy.root(PARAM_TOKEN_ID_STRING))
+	}
+}
+
+#[derive(Clone)]
+pub struct MutableCheckTokenIDParams {
+	pub(crate) proxy: Proxy,
+}
+
+impl MutableCheckTokenIDParams {
+    pub fn sc_token_id(&self) -> ScMutableTokenID {
+		ScMutableTokenID::new(self.proxy.root(PARAM_SC_TOKEN_ID))
+	}
+
+    pub fn token_id_bytes(&self) -> ScMutableBytes {
+		ScMutableBytes::new(self.proxy.root(PARAM_TOKEN_ID_BYTES))
+	}
+
+    pub fn token_id_string(&self) -> ScMutableString {
+		ScMutableString::new(self.proxy.root(PARAM_TOKEN_ID_STRING))
 	}
 }
 

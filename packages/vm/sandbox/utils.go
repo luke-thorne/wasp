@@ -22,15 +22,11 @@ type utilImplBLS struct {
 	gas iscp.Gas
 }
 
-func NewUtils(gas iscp.Gas) iscp.Utils {
-	return utilImpl{gas}
+func NewUtils(g iscp.Gas) iscp.Utils {
+	return utilImpl{g}
 }
 
 // ------ iscp.Utils() interface
-
-func (u utilImpl) Base58() iscp.Base58 {
-	return u
-}
 
 func (u utilImpl) Hashing() iscp.Hashing {
 	return u
@@ -100,7 +96,7 @@ func (u utilImpl) AddressFromPublicKey(pubKey []byte) (iotago.Address, error) {
 // iscp.BLS interface
 var suite = bn256.NewSuite()
 
-func (u utilImplBLS) ValidSignature(data []byte, pubKeyBin []byte, signature []byte) bool {
+func (u utilImplBLS) ValidSignature(data, pubKeyBin, signature []byte) bool {
 	u.gas.Burn(gas.BurnCodeUtilsBLSValidSignature)
 	pubKey := suite.G2().Point()
 	var err error
@@ -120,7 +116,7 @@ func (u utilImplBLS) AddressFromPublicKey(pubKeyBin []byte) (iotago.Address, err
 	// return iotago.NewBLSAddress(pubKeyBin), nil
 }
 
-func (u utilImplBLS) AggregateBLSSignatures(pubKeysBin [][]byte, sigsBin [][]byte) ([]byte, []byte, error) {
+func (u utilImplBLS) AggregateBLSSignatures(pubKeysBin, sigsBin [][]byte) ([]byte, []byte, error) {
 	if len(sigsBin) == 0 || len(pubKeysBin) != len(sigsBin) {
 		return nil, nil, xerrors.Errorf("BLSUtil: number of public keys must be equal to the number of signatures and not empty")
 	}

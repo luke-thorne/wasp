@@ -146,8 +146,20 @@ func (nc *nodeConn) UnregisterChain(chainID *iscp.ChainID) {
 	nc.log.Debugf("nodeconn: chain unregistered: %s", chainID)
 }
 
-// PublishTransaction implements chain.NodeConnection.
-func (nc *nodeConn) PublishTransaction(chainID *iscp.ChainID, stateIndex uint32, tx *iotago.Transaction) error {
+// PublishStateTransaction implements chain.NodeConnection.
+func (nc *nodeConn) PublishStateTransaction(chainID *iscp.ChainID, stateIndex uint32, tx *iotago.Transaction) error {
+	nc.chainsLock.RLock()
+	ncc, ok := nc.chains[chainID.Key()]
+	nc.chainsLock.RUnlock()
+	if !ok {
+		return xerrors.Errorf("Chain %v is not connected.", chainID.String())
+	}
+	return ncc.PublishTransaction(tx)
+}
+
+// PublishGovernanceTransaction implements chain.NodeConnection.
+// TODO: identical to PublishStateTransaction; needs to be reviewed
+func (nc *nodeConn) PublishGovernanceTransaction(chainID *iscp.ChainID, tx *iotago.Transaction) error {
 	nc.chainsLock.RLock()
 	ncc, ok := nc.chains[chainID.Key()]
 	nc.chainsLock.RUnlock()
@@ -225,14 +237,17 @@ func (nc *nodeConn) GetMetrics() nodeconnmetrics.NodeConnectionMetrics {
 
 func (nc *nodeConn) doPostTx(ctx context.Context, tx *iotago.Transaction) (*iotago.Block, error) {
 	// Build a Block and post it.
-	block, err := builder.NewBlockBuilder(parameters.L1.Protocol.Version).
+	block, err := builder.NewBlockBuilder().
 		Payload(tx).
 		Tips(ctx, nc.nodeAPIClient).
 		Build()
 	if err != nil {
 		return nil, xerrors.Errorf("failed to build a tx: %w", err)
 	}
-	nc.doPoW(ctx, block)
+	err = nc.doPoW(ctx, block)
+	if err != nil {
+		return nil, xerrors.Errorf("failed duing PoW: %w", err)
+	}
 	block, err = nc.nodeAPIClient.SubmitBlock(ctx, block, parameters.L1.Protocol)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to submit a tx: %w", err)
@@ -272,7 +287,7 @@ func (nc *nodeConn) waitUntilConfirmed(ctx context.Context, block *iotago.Block)
 		}
 		// reattach or promote if needed
 		if metadataResp.ShouldPromote != nil && *metadataResp.ShouldPromote {
-			nc.log.Debugf("promoting msgID: %s", msgID)
+			nc.log.Debugf("promoting msgID: %s", msgID.ToHex())
 			// create an empty Block and the BlockID as one of the parents
 			tipsResp, err := nc.nodeAPIClient.Tips(ctx)
 			if err != nil {
@@ -282,14 +297,18 @@ func (nc *nodeConn) waitUntilConfirmed(ctx context.Context, block *iotago.Block)
 			if err != nil {
 				return xerrors.Errorf("failed to get Tips from tips response: %w", err)
 			}
-			parents := [][]byte{msgID[:]}
+
+			parents := []iotago.BlockID{
+				msgID,
+			}
+
 			if len(tips) > 7 {
 				tips = tips[:7] // max 8 parents
 			}
 			for _, tip := range tips {
-				parents = append(parents, tip[:])
+				parents = append(parents, tip)
 			}
-			promotionMsg, err := builder.NewBlockBuilder(parameters.L1.Protocol.Version).Parents(parents).Build()
+			promotionMsg, err := builder.NewBlockBuilder().Parents(parents).Build()
 			if err != nil {
 				return xerrors.Errorf("failed to build promotion Block: %w", err)
 			}

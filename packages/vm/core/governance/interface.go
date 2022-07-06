@@ -7,7 +7,6 @@ package governance
 
 import (
 	"github.com/iotaledger/wasp/packages/iscp/coreutil"
-	"github.com/iotaledger/wasp/packages/kv"
 )
 
 // constants
@@ -15,8 +14,8 @@ const (
 	MinEventSize               = uint16(200)
 	MinEventsPerRequest        = uint16(10)
 	DefaultMaxEventsPerRequest = uint16(50)
-	DefaultMaxEventSize        = uint16(2000)    // 2Kb
-	DefaultMaxBlobSize         = uint32(1000000) // 1Mb
+	DefaultMaxEventSize        = uint16(2000)      // 2Kb
+	DefaultMaxBlobSize         = uint32(2_000_000) // 2Mb
 )
 
 var Contract = coreutil.NewContract(coreutil.CoreContractGovernance, "Governance contract")
@@ -47,6 +46,11 @@ var (
 	FuncRevokeAccessNode  = coreutil.Func("revokeAccessNode")
 	FuncChangeAccessNodes = coreutil.Func("changeAccessNodes")
 	ViewGetChainNodes     = coreutil.ViewFunc("getChainNodes")
+
+	// maintenance
+	FuncStartMaintenance     = coreutil.Func("startMaintenance")
+	FuncStopMaintenance      = coreutil.Func("stopMaintenance")
+	ViewGetMaintenanceStatus = coreutil.ViewFunc("getMaintenanceStatus")
 )
 
 // state variables
@@ -72,36 +76,39 @@ const (
 	// access nodes
 	VarAccessNodes          = "an"
 	VarAccessNodeCandidates = "ac"
+
+	// maintenance
+	VarMaintenanceStatus = "m"
 )
 
 // params
 const (
 	// state controller
 	ParamStateControllerAddress          = coreutil.ParamStateControllerAddress
-	ParamAllowedStateControllerAddresses = kv.Key('a' + iota)
+	ParamAllowedStateControllerAddresses = "a"
 
 	// chain owner
-	ParamChainOwner
+	ParamChainOwner = "o"
 
 	// fees
-	ParamFeePolicyBytes
+	ParamFeePolicyBytes = "g"
 
 	// chain info
-	ParamChainID
-	ParamDescription
-	ParamMaxBlobSizeUint32
-	ParamMaxEventSizeUint16
-	ParamMaxEventsPerRequestUint16
+	ParamChainID                   = "c"
+	ParamDescription               = "d"
+	ParamMaxBlobSizeUint32         = "mb"
+	ParamMaxEventSizeUint16        = "me"
+	ParamMaxEventsPerRequestUint16 = "mr"
 
-	ParamGetChainNodesAccessNodeCandidates
-	ParamGetChainNodesAccessNodes
+	ParamGetChainNodesAccessNodeCandidates = "an"
+	ParamGetChainNodesAccessNodes          = "ac"
 
 	// access nodes: addCandidateNode
-	ParamAccessNodeInfoForCommittee
-	ParamAccessNodeInfoPubKey
-	ParamAccessNodeInfoCertificate
-	ParamAccessNodeInfoAccessAPI
+	ParamAccessNodeInfoForCommittee = "i"
+	ParamAccessNodeInfoPubKey       = "ip"
+	ParamAccessNodeInfoCertificate  = "ic"
+	ParamAccessNodeInfoAccessAPI    = "ia"
 
 	// access nodes: changeAccessNodes
-	ParamChangeAccessNodesActions
+	ParamChangeAccessNodesActions = "n"
 )

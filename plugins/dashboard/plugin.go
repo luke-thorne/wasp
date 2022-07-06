@@ -10,13 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/iotaledger/wasp/packages/authentication/shared/permissions"
-
-	"github.com/iotaledger/wasp/packages/authentication"
-
 	"github.com/iotaledger/hive.go/daemon"
 	"github.com/iotaledger/hive.go/logger"
 	"github.com/iotaledger/hive.go/node"
+	"github.com/iotaledger/wasp/packages/authentication"
+	"github.com/iotaledger/wasp/packages/authentication/shared/permissions"
 	"github.com/iotaledger/wasp/packages/chain"
 	"github.com/iotaledger/wasp/packages/dashboard"
 	"github.com/iotaledger/wasp/packages/iscp"
@@ -51,6 +49,15 @@ var _ dashboard.WaspServices = &waspServices{}
 
 func (w *waspServices) ConfigDump() map[string]interface{} {
 	return parameters.Dump()
+}
+
+func (*waspServices) WebAPIPort() string {
+	port := "80"
+	parts := strings.Split(parameters.GetString(parameters.WebAPIBindAddress), ":")
+	if len(parts) == 2 {
+		port = parts[1]
+	}
+	return port
 }
 
 func (w *waspServices) ExploreAddressBaseURL() string {

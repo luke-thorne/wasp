@@ -5,6 +5,7 @@
 // >>>> DO NOT CHANGE THIS FILE! <<<<
 // Change the json schema instead
 
+//nolint:revive
 package coreroot
 
 import "github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib/wasmtypes"
@@ -91,6 +92,30 @@ type MutableRevokeDeployPermissionParams struct {
 
 func (s MutableRevokeDeployPermissionParams) Deployer() wasmtypes.ScMutableAgentID {
 	return wasmtypes.NewScMutableAgentID(s.proxy.Root(ParamDeployer))
+}
+
+type ImmutableSubscribeBlockContextParams struct {
+	proxy wasmtypes.Proxy
+}
+
+func (s ImmutableSubscribeBlockContextParams) CloseFunc() wasmtypes.ScImmutableHname {
+	return wasmtypes.NewScImmutableHname(s.proxy.Root(ParamCloseFunc))
+}
+
+func (s ImmutableSubscribeBlockContextParams) OpenFunc() wasmtypes.ScImmutableHname {
+	return wasmtypes.NewScImmutableHname(s.proxy.Root(ParamOpenFunc))
+}
+
+type MutableSubscribeBlockContextParams struct {
+	proxy wasmtypes.Proxy
+}
+
+func (s MutableSubscribeBlockContextParams) CloseFunc() wasmtypes.ScMutableHname {
+	return wasmtypes.NewScMutableHname(s.proxy.Root(ParamCloseFunc))
+}
+
+func (s MutableSubscribeBlockContextParams) OpenFunc() wasmtypes.ScMutableHname {
+	return wasmtypes.NewScMutableHname(s.proxy.Root(ParamOpenFunc))
 }
 
 type ImmutableFindContractParams struct {

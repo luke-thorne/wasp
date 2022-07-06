@@ -75,6 +75,19 @@ const EXPORT_MAP: ScExportMap = ScExportMap {
     	VIEW_BIG_INT_SUB,
     	VIEW_BLOCK_RECORD,
     	VIEW_BLOCK_RECORDS,
+    	VIEW_CHECK_ADDRESS,
+    	VIEW_CHECK_AGENT_ID,
+    	VIEW_CHECK_BIG_INT,
+    	VIEW_CHECK_BOOL,
+    	VIEW_CHECK_BYTES,
+    	VIEW_CHECK_ETH_ADDRESS_AND_AGENT_ID,
+    	VIEW_CHECK_HASH,
+    	VIEW_CHECK_HNAME,
+    	VIEW_CHECK_INT_AND_UINT,
+    	VIEW_CHECK_NFT_ID,
+    	VIEW_CHECK_REQUEST_ID,
+    	VIEW_CHECK_STRING,
+    	VIEW_CHECK_TOKEN_ID,
     	VIEW_GET_RANDOM,
     	VIEW_IOTA_BALANCE,
     	VIEW_STRING_MAP_OF_STRING_ARRAY_LENGTH,
@@ -127,6 +140,19 @@ const EXPORT_MAP: ScExportMap = ScExportMap {
     	view_big_int_sub_thunk,
     	view_block_record_thunk,
     	view_block_records_thunk,
+    	view_check_address_thunk,
+    	view_check_agent_id_thunk,
+    	view_check_big_int_thunk,
+    	view_check_bool_thunk,
+    	view_check_bytes_thunk,
+    	view_check_eth_address_and_agent_id_thunk,
+    	view_check_hash_thunk,
+    	view_check_hname_thunk,
+    	view_check_int_and_uint_thunk,
+    	view_check_nft_id_thunk,
+    	view_check_request_id_thunk,
+    	view_check_string_thunk,
+    	view_check_token_id_thunk,
     	view_get_random_thunk,
     	view_iota_balance_thunk,
     	view_string_map_of_string_array_length_thunk,
@@ -943,6 +969,224 @@ fn view_block_records_thunk(ctx: &ScViewContext) {
 	view_block_records(ctx, &f);
 	ctx.results(&f.results.proxy.kv_store);
 	ctx.log("testwasmlib.viewBlockRecords ok");
+}
+
+pub struct CheckAddressContext {
+	params: ImmutableCheckAddressParams,
+	state: ImmutableTestWasmLibState,
+}
+
+fn view_check_address_thunk(ctx: &ScViewContext) {
+	ctx.log("testwasmlib.viewCheckAddress");
+	let f = CheckAddressContext {
+		params: ImmutableCheckAddressParams { proxy: params_proxy() },
+		state: ImmutableTestWasmLibState { proxy: state_proxy() },
+	};
+	ctx.require(f.params.address_bytes().exists(), "missing mandatory addressBytes");
+	ctx.require(f.params.address_string().exists(), "missing mandatory addressString");
+	ctx.require(f.params.sc_address().exists(), "missing mandatory scAddress");
+	view_check_address(ctx, &f);
+	ctx.log("testwasmlib.viewCheckAddress ok");
+}
+
+pub struct CheckAgentIDContext {
+	params: ImmutableCheckAgentIDParams,
+	state: ImmutableTestWasmLibState,
+}
+
+fn view_check_agent_id_thunk(ctx: &ScViewContext) {
+	ctx.log("testwasmlib.viewCheckAgentID");
+	let f = CheckAgentIDContext {
+		params: ImmutableCheckAgentIDParams { proxy: params_proxy() },
+		state: ImmutableTestWasmLibState { proxy: state_proxy() },
+	};
+	ctx.require(f.params.agent_bytes().exists(), "missing mandatory agentBytes");
+	ctx.require(f.params.agent_string().exists(), "missing mandatory agentString");
+	ctx.require(f.params.sc_agent_id().exists(), "missing mandatory scAgentID");
+	view_check_agent_id(ctx, &f);
+	ctx.log("testwasmlib.viewCheckAgentID ok");
+}
+
+pub struct CheckBigIntContext {
+	params: ImmutableCheckBigIntParams,
+	state: ImmutableTestWasmLibState,
+}
+
+fn view_check_big_int_thunk(ctx: &ScViewContext) {
+	ctx.log("testwasmlib.viewCheckBigInt");
+	let f = CheckBigIntContext {
+		params: ImmutableCheckBigIntParams { proxy: params_proxy() },
+		state: ImmutableTestWasmLibState { proxy: state_proxy() },
+	};
+	ctx.require(f.params.big_int_bytes().exists(), "missing mandatory bigIntBytes");
+	ctx.require(f.params.big_int_string().exists(), "missing mandatory bigIntString");
+	ctx.require(f.params.sc_big_int().exists(), "missing mandatory scBigInt");
+	view_check_big_int(ctx, &f);
+	ctx.log("testwasmlib.viewCheckBigInt ok");
+}
+
+pub struct CheckBoolContext {
+	state: ImmutableTestWasmLibState,
+}
+
+fn view_check_bool_thunk(ctx: &ScViewContext) {
+	ctx.log("testwasmlib.viewCheckBool");
+	let f = CheckBoolContext {
+		state: ImmutableTestWasmLibState { proxy: state_proxy() },
+	};
+	view_check_bool(ctx, &f);
+	ctx.log("testwasmlib.viewCheckBool ok");
+}
+
+pub struct CheckBytesContext {
+	params: ImmutableCheckBytesParams,
+	state: ImmutableTestWasmLibState,
+}
+
+fn view_check_bytes_thunk(ctx: &ScViewContext) {
+	ctx.log("testwasmlib.viewCheckBytes");
+	let f = CheckBytesContext {
+		params: ImmutableCheckBytesParams { proxy: params_proxy() },
+		state: ImmutableTestWasmLibState { proxy: state_proxy() },
+	};
+	ctx.require(f.params.bytes().exists(), "missing mandatory bytes");
+	view_check_bytes(ctx, &f);
+	ctx.log("testwasmlib.viewCheckBytes ok");
+}
+
+pub struct CheckEthAddressAndAgentIDContext {
+	params: ImmutableCheckEthAddressAndAgentIDParams,
+	state: ImmutableTestWasmLibState,
+}
+
+fn view_check_eth_address_and_agent_id_thunk(ctx: &ScViewContext) {
+	ctx.log("testwasmlib.viewCheckEthAddressAndAgentID");
+	let f = CheckEthAddressAndAgentIDContext {
+		params: ImmutableCheckEthAddressAndAgentIDParams { proxy: params_proxy() },
+		state: ImmutableTestWasmLibState { proxy: state_proxy() },
+	};
+	ctx.require(f.params.eth_address().exists(), "missing mandatory ethAddress");
+	view_check_eth_address_and_agent_id(ctx, &f);
+	ctx.log("testwasmlib.viewCheckEthAddressAndAgentID ok");
+}
+
+pub struct CheckHashContext {
+	params: ImmutableCheckHashParams,
+	state: ImmutableTestWasmLibState,
+}
+
+fn view_check_hash_thunk(ctx: &ScViewContext) {
+	ctx.log("testwasmlib.viewCheckHash");
+	let f = CheckHashContext {
+		params: ImmutableCheckHashParams { proxy: params_proxy() },
+		state: ImmutableTestWasmLibState { proxy: state_proxy() },
+	};
+	ctx.require(f.params.hash_bytes().exists(), "missing mandatory hashBytes");
+	ctx.require(f.params.hash_string().exists(), "missing mandatory hashString");
+	ctx.require(f.params.sc_hash().exists(), "missing mandatory scHash");
+	view_check_hash(ctx, &f);
+	ctx.log("testwasmlib.viewCheckHash ok");
+}
+
+pub struct CheckHnameContext {
+	params: ImmutableCheckHnameParams,
+	state: ImmutableTestWasmLibState,
+}
+
+fn view_check_hname_thunk(ctx: &ScViewContext) {
+	ctx.log("testwasmlib.viewCheckHname");
+	let f = CheckHnameContext {
+		params: ImmutableCheckHnameParams { proxy: params_proxy() },
+		state: ImmutableTestWasmLibState { proxy: state_proxy() },
+	};
+	ctx.require(f.params.hname_bytes().exists(), "missing mandatory hnameBytes");
+	ctx.require(f.params.hname_string().exists(), "missing mandatory hnameString");
+	ctx.require(f.params.sc_hname().exists(), "missing mandatory scHname");
+	view_check_hname(ctx, &f);
+	ctx.log("testwasmlib.viewCheckHname ok");
+}
+
+pub struct CheckIntAndUintContext {
+	state: ImmutableTestWasmLibState,
+}
+
+fn view_check_int_and_uint_thunk(ctx: &ScViewContext) {
+	ctx.log("testwasmlib.viewCheckIntAndUint");
+	let f = CheckIntAndUintContext {
+		state: ImmutableTestWasmLibState { proxy: state_proxy() },
+	};
+	view_check_int_and_uint(ctx, &f);
+	ctx.log("testwasmlib.viewCheckIntAndUint ok");
+}
+
+pub struct CheckNftIDContext {
+	params: ImmutableCheckNftIDParams,
+	state: ImmutableTestWasmLibState,
+}
+
+fn view_check_nft_id_thunk(ctx: &ScViewContext) {
+	ctx.log("testwasmlib.viewCheckNftID");
+	let f = CheckNftIDContext {
+		params: ImmutableCheckNftIDParams { proxy: params_proxy() },
+		state: ImmutableTestWasmLibState { proxy: state_proxy() },
+	};
+	ctx.require(f.params.nft_id_bytes().exists(), "missing mandatory nftIDBytes");
+	ctx.require(f.params.nft_id_string().exists(), "missing mandatory nftIDString");
+	ctx.require(f.params.sc_nft_id().exists(), "missing mandatory scNftID");
+	view_check_nft_id(ctx, &f);
+	ctx.log("testwasmlib.viewCheckNftID ok");
+}
+
+pub struct CheckRequestIDContext {
+	params: ImmutableCheckRequestIDParams,
+	state: ImmutableTestWasmLibState,
+}
+
+fn view_check_request_id_thunk(ctx: &ScViewContext) {
+	ctx.log("testwasmlib.viewCheckRequestID");
+	let f = CheckRequestIDContext {
+		params: ImmutableCheckRequestIDParams { proxy: params_proxy() },
+		state: ImmutableTestWasmLibState { proxy: state_proxy() },
+	};
+	ctx.require(f.params.request_id_bytes().exists(), "missing mandatory requestIDBytes");
+	ctx.require(f.params.request_id_string().exists(), "missing mandatory requestIDString");
+	ctx.require(f.params.sc_request_id().exists(), "missing mandatory scRequestID");
+	view_check_request_id(ctx, &f);
+	ctx.log("testwasmlib.viewCheckRequestID ok");
+}
+
+pub struct CheckStringContext {
+	params: ImmutableCheckStringParams,
+	state: ImmutableTestWasmLibState,
+}
+
+fn view_check_string_thunk(ctx: &ScViewContext) {
+	ctx.log("testwasmlib.viewCheckString");
+	let f = CheckStringContext {
+		params: ImmutableCheckStringParams { proxy: params_proxy() },
+		state: ImmutableTestWasmLibState { proxy: state_proxy() },
+	};
+	ctx.require(f.params.string().exists(), "missing mandatory string");
+	view_check_string(ctx, &f);
+	ctx.log("testwasmlib.viewCheckString ok");
+}
+
+pub struct CheckTokenIDContext {
+	params: ImmutableCheckTokenIDParams,
+	state: ImmutableTestWasmLibState,
+}
+
+fn view_check_token_id_thunk(ctx: &ScViewContext) {
+	ctx.log("testwasmlib.viewCheckTokenID");
+	let f = CheckTokenIDContext {
+		params: ImmutableCheckTokenIDParams { proxy: params_proxy() },
+		state: ImmutableTestWasmLibState { proxy: state_proxy() },
+	};
+	ctx.require(f.params.sc_token_id().exists(), "missing mandatory scTokenID");
+	ctx.require(f.params.token_id_bytes().exists(), "missing mandatory tokenIDBytes");
+	ctx.require(f.params.token_id_string().exists(), "missing mandatory tokenIDString");
+	view_check_token_id(ctx, &f);
+	ctx.log("testwasmlib.viewCheckTokenID ok");
 }
 
 pub struct GetRandomContext {

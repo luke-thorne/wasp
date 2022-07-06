@@ -39,7 +39,7 @@ func testChainOwnerIDFull(ctx iscp.Sandbox) dict.Dict {
 }
 
 func testSandboxCall(ctx iscp.SandboxView) dict.Dict {
-	ret := ctx.Call(governance.Contract.Hname(), governance.ViewGetChainInfo.Hname(), nil)
+	ret := ctx.CallView(governance.Contract.Hname(), governance.ViewGetChainInfo.Hname(), nil)
 	desc := ret.MustGet(governance.VarDescription)
 	ret.Set(VarSandboxCall, desc)
 	return ret
@@ -79,26 +79,10 @@ func testCallPanicViewEPFromFull(ctx iscp.Sandbox) dict.Dict {
 
 func testCallPanicViewEPFromView(ctx iscp.SandboxView) dict.Dict {
 	ctx.Log().Infof("will be calling entry point '%s' from view EP", FuncPanicViewEP)
-	return ctx.Call(Contract.Hname(), FuncPanicViewEP.Hname(), nil)
+	return ctx.CallView(Contract.Hname(), FuncPanicViewEP.Hname(), nil)
 }
 
 func doNothing(ctx iscp.Sandbox) dict.Dict {
 	ctx.Log().Infof(MsgDoNothing)
 	return nil
 }
-
-// sendToAddress send the whole account to ParamAddress if invoked by the creator
-// Panics if wrong parameter or unauthorized access
-//func sendToAddress(ctx iscp.Sandbox) (dict.Dict) {
-//	ctx.Log().Infof(FuncSendToAddress.Name)
-//	a := assert.NewAssert(ctx.Log())
-//	par := kvdecoder.New(ctx.Params(), ctx.Log())
-//	a.Requiref(ctx.Caller().Equals(ctx.ContractCreator()), MsgPanicUnauthorized)
-//	targetAddress := par.MustGetAddress(ParamAddress)
-//	myTokens := ctx.Balances()
-//	a.Requiref(ctx.Send(targetAddress, myTokens, nil),
-//		fmt.Sprintf("failed send to %s: tokens:\n%s", targetAddress, myTokens.String()))
-//
-//	ctx.Log().Infof("sent to %s: tokens:\n%s", targetAddress.Base58(), myTokens.String())
-//	return nil
-//}

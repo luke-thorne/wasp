@@ -19,7 +19,7 @@ import (
 const incName = "incTest"
 
 func checkCounter(e *solo.Chain, expected int64) {
-	ret, err := e.CallView(incName, FuncGetCounter.Name)
+	ret, err := e.CallView(incName, ViewGetCounter.Name)
 	require.NoError(e.Env.T, err)
 	c, err := codec.DecodeInt64(ret.MustGet(VarCounter))
 	require.NoError(e.Env.T, err)
@@ -106,7 +106,7 @@ func TestIncWith1Post(t *testing.T) {
 	require.NoError(t, err)
 
 	// advance logical clock to unlock that timelocked request
-	env.AdvanceClockBy(6*time.Second, 1)
+	env.AdvanceClockBy(6 * time.Second)
 	require.True(t, chain.WaitForRequestsThrough(4))
 
 	checkCounter(chain, 19)

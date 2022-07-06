@@ -14,19 +14,59 @@ import (
 	"github.com/iotaledger/wasp/packages/kv/buffered"
 	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/kv/dict"
+	"github.com/iotaledger/wasp/packages/vm/core/accounts"
 	"github.com/iotaledger/wasp/packages/vm/core/evm"
 	"github.com/iotaledger/wasp/packages/vm/core/evm/emulator"
+	"github.com/iotaledger/wasp/packages/vm/core/governance"
+	"github.com/iotaledger/wasp/packages/vm/gas"
 )
 
-// getEmulatorInBlockContext creates a new emulator instance if this is the first call to applyTransaction
-// in the ISC block; otherwise it returns the previously created instance. The purpose is to
-// create a single Ethereum block for each ISC block.
-func getEmulatorInBlockContext(ctx iscp.Sandbox) *emulator.EVMEmulator {
-	bctx := ctx.Privileged().BlockContext(
-		func(ctx iscp.Sandbox) interface{} { return createEmulator(ctx) },
-		func(bctx interface{}) { bctx.(*emulator.EVMEmulator).MintBlock() },
-	)
-	return bctx.(*emulator.EVMEmulator)
+type blockContext struct {
+	emu      *emulator.EVMEmulator
+	txs      []*types.Transaction
+	receipts []*types.Receipt
+}
+
+// openBlockContext creates a new emulator instance before processing any
+// requests in the ISC block. The purpose is to create a single Ethereum block
+// for each ISC block.
+func openBlockContext(ctx iscp.Sandbox) dict.Dict {
+	ctx.RequireCallerIsChainOwner()
+	ctx.Privileged().SetBlockContext(&blockContext{emu: createEmulator(ctx)})
+	return nil
+}
+
+// closeBlockContext "mints" the Ethereum block after all requests in the ISC
+// block have been processed.
+func closeBlockContext(ctx iscp.Sandbox) dict.Dict {
+	ctx.RequireCallerIsChainOwner()
+	getBlockContext(ctx).mintBlock()
+	return nil
+}
+
+func getBlockContext(ctx iscp.Sandbox) *blockContext {
+	return ctx.Privileged().BlockContext().(*blockContext)
+}
+
+func (bctx *blockContext) mintBlock() {
+	// count txs where status = success (which are already stored in the pending block)
+	txCount := uint(0)
+	for i := range bctx.txs {
+		if bctx.receipts[i].Status == types.ReceiptStatusSuccessful {
+			txCount++
+		}
+	}
+
+	// failed txs were not stored in the pending block -- store them now
+	for i := range bctx.txs {
+		if bctx.receipts[i].Status != types.ReceiptStatusSuccessful {
+			bctx.receipts[i].TransactionIndex = txCount
+			bctx.emu.BlockchainDB().AddTransaction(bctx.txs[i], bctx.receipts[i])
+			txCount++
+		}
+	}
+
+	bctx.emu.MintBlock()
 }
 
 func createEmulator(ctx iscp.Sandbox) *emulator.EVMEmulator {
@@ -34,6 +74,7 @@ func createEmulator(ctx iscp.Sandbox) *emulator.EVMEmulator {
 		evmStateSubrealm(ctx.State()),
 		timestamp(ctx),
 		newISCContract(ctx),
+		getBalanceFunc(ctx),
 	)
 }
 
@@ -42,6 +83,7 @@ func createEmulatorR(ctx iscp.SandboxView) *emulator.EVMEmulator {
 		evmStateSubrealm(buffered.NewBufferedKVStoreAccess(ctx.State())),
 		timestamp(ctx),
 		newISCContractView(ctx),
+		getBalanceFunc(ctx),
 	)
 }
 
@@ -153,7 +195,7 @@ func paramBlockNumber(ctx iscp.SandboxView, emu *emulator.EVMEmulator, allowPrev
 	return current
 }
 
-func paramBlockNumberOrHashAsNumber(ctx iscp.SandboxView, emu *emulator.EVMEmulator, allowPrevious bool) uint64 { // nolint:unparam
+func paramBlockNumberOrHashAsNumber(ctx iscp.SandboxView, emu *emulator.EVMEmulator, allowPrevious bool) uint64 {
 	if ctx.Params().MustHas(evm.FieldBlockHash) {
 		a := assert.NewAssert(ctx.Log())
 		blockHash := common.BytesToHash(ctx.Params().MustGet(evm.FieldBlockHash))
@@ -162,4 +204,35 @@ func paramBlockNumberOrHashAsNumber(ctx iscp.SandboxView, emu *emulator.EVMEmula
 		return requireLatestBlock(ctx, emu, allowPrevious, header.Number.Uint64())
 	}
 	return paramBlockNumber(ctx, emu, allowPrevious)
+}
+
+func getBalanceFunc(ctx iscp.SandboxBase) emulator.BalanceFunc {
+	res := ctx.CallView(
+		governance.Contract.Hname(),
+		governance.ViewGetFeePolicy.Hname(),
+		nil,
+	)
+	feePolicy, err := gas.FeePolicyFromBytes(res.MustGet(governance.ParamFeePolicyBytes))
+	ctx.RequireNoError(err)
+	if feePolicy.GasFeeTokenID != nil {
+		return func(addr common.Address) *big.Int {
+			res := ctx.CallView(
+				accounts.Contract.Hname(),
+				accounts.ViewBalanceNativeToken.Hname(),
+				dict.Dict{
+					accounts.ParamAgentID:       iscp.NewEthereumAddressAgentID(addr).Bytes(),
+					accounts.ParamNativeTokenID: feePolicy.GasFeeTokenID[:],
+				},
+			)
+			return new(big.Int).SetBytes(res.MustGet(accounts.ParamBalance))
+		}
+	}
+	return func(addr common.Address) *big.Int {
+		res := ctx.CallView(
+			accounts.Contract.Hname(),
+			accounts.ViewBalanceBaseToken.Hname(),
+			dict.Dict{accounts.ParamAgentID: iscp.NewEthereumAddressAgentID(addr).Bytes()},
+		)
+		return new(big.Int).SetUint64(codec.MustDecodeUint64(res.MustGet(accounts.ParamBalance), 0))
+	}
 }

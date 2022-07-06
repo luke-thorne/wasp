@@ -76,16 +76,14 @@ func (s *SoloSandbox) Call(funcNr int32, args []byte) []byte {
 		return s.fnLog(args)
 	case wasmlib.FnPost:
 		return s.fnPost(args)
-	case wasmlib.FnUtilsBase58Decode:
-		return s.fnUtilsBase58Decode(args)
-	case wasmlib.FnUtilsBase58Encode:
-		return s.fnUtilsBase58Encode(args)
 	case wasmlib.FnUtilsBech32Decode:
 		return s.fnUtilsBech32Decode(args)
 	case wasmlib.FnUtilsBech32Encode:
 		return s.fnUtilsBech32Encode(args)
+	case wasmlib.FnUtilsHashName:
+		return s.fnUtilsHashName(args)
 	}
-	panic("implement solo sandbox")
+	panic("implement SoloSandbox.Call")
 }
 
 func (s *SoloSandbox) checkErr(err error) {

@@ -25,13 +25,15 @@ func Test2Chains(t *testing.T) { run2(t, test2Chains) }
 
 func test2Chains(t *testing.T, w bool) {
 	if w {
-		// TODO
+		// TODO wasm version is being skipped
 		t.SkipNow()
 	}
 	corecontracts.PrintWellKnownHnames()
 
 	env := solo.New(t, &solo.InitOptions{
 		AutoAdjustDustDeposit: true,
+		Debug:                 true,
+		PrintStackTrace:       true,
 	}).
 		WithNativeContract(sbtestsc.Processor)
 	chain1 := env.NewChain(nil, "ch1")

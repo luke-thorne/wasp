@@ -86,6 +86,7 @@ func newMempool(
 func (m *mempool) addToInBuffer(req iscp.Request) bool {
 	// just check if it is already in the pool
 	if m.HasRequest(req.ID()) {
+		m.log.Warnf("Request %s is already in mempool", req.ID())
 		return false
 	}
 	m.inMutex.Lock()
@@ -204,39 +205,38 @@ func (m *mempool) traceIn(req iscp.Request) {
 	if rotate.IsRotateStateControllerRequest(req) {
 		rotateStr = "(rotate) "
 	}
-	logFn := m.log.Debugf
-	if traceInOut {
-		logFn = m.log.Infof
-	}
 	var timeLockTime time.Time
-	var timeLockMilestone uint32
 
 	if !req.IsOffLedger() {
-		td := req.(iscp.OnLedgerRequest).Features().TimeLock()
-		if td != nil {
-			timeLockTime = td.Time
-			timeLockMilestone = td.MilestoneIndex
+		timeLock := req.(iscp.OnLedgerRequest).Features().TimeLock()
+		if !timeLock.IsZero() {
+			timeLockTime = timeLock
 		}
 	}
 
-	if !timeLockTime.IsZero() || timeLockMilestone > 0 {
-		logFn("IN MEMPOOL %s%s (+%d / -%d) timelocked for %v until milestone %d",
-			rotateStr, req.ID(), m.inPoolCounter, m.outPoolCounter, time.Until(timeLockTime), timeLockMilestone)
+	logFun := m.getLogFun()
+	if !timeLockTime.IsZero() {
+		logFun("IN MEMPOOL %s%s (+%d / -%d) timelocked for %v until milestone %d",
+			rotateStr, req.ID(), m.inPoolCounter, m.outPoolCounter, time.Until(timeLockTime))
 	} else {
-		logFn("IN MEMPOOL %s%s (+%d / -%d)", rotateStr, req.ID(), m.inPoolCounter, m.outPoolCounter)
+		logFun("IN MEMPOOL %s%s (+%d / -%d)", rotateStr, req.ID(), m.inPoolCounter, m.outPoolCounter)
 	}
 }
 
 func (m *mempool) traceOut(reqid iscp.RequestID) {
+	logFun := m.getLogFun()
+	logFun("OUT MEMPOOL %s (+%d / -%d)", reqid, m.inPoolCounter, m.outPoolCounter)
+}
+
+func (m *mempool) getLogFun() func(string, ...interface{}) {
 	if traceInOut {
-		m.log.Infof("OUT MEMPOOL %s (+%d / -%d)", reqid, m.inPoolCounter, m.outPoolCounter)
-	} else {
-		m.log.Debugf("OUT MEMPOOL %s (+%d / -%d)", reqid, m.inPoolCounter, m.outPoolCounter)
+		return m.log.Infof
 	}
+	return m.log.Debugf
 }
 
 // isRequestReady for requests with paramsReady, the result is strictly deterministic
-func (m *mempool) isRequestReady(ref *requestRef, currentTime iscp.TimeData) (isReady, shouldBeRemoved bool) {
+func (m *mempool) isRequestReady(ref *requestRef, currentTime time.Time) (isReady, shouldBeRemoved bool) {
 	if ref.req.IsOffLedger() {
 		return true, false
 	}
@@ -259,7 +259,7 @@ func (m *mempool) isRequestReady(ref *requestRef, currentTime iscp.TimeData) (is
 // Note that later status of request may change due to the time change and time constraints
 // If there's at least one committee rotation request in the mempool, the ReadyNow returns
 // batch with only one request, the oldest committee rotation request
-func (m *mempool) ReadyNow(currentTime iscp.TimeData) []iscp.Request {
+func (m *mempool) ReadyNow(currentTime time.Time) []iscp.Request {
 	m.poolMutex.RLock()
 
 	var oldestRotate iscp.Request
@@ -313,7 +313,7 @@ func (m *mempool) ReadyNow(currentTime iscp.TimeData) []iscp.Request {
 // - (a list of processable requests), true if the list can be deterministically calculated
 // Note that (a list of processable requests) can be empty if none satisfies currentTime time constraint (timelock, fallback)
 // For requests which are known and solidified, the result is deterministic
-func (m *mempool) ReadyFromIDs(currentTime iscp.TimeData, reqIDs ...iscp.RequestID) ([]iscp.Request, []int, bool) {
+func (m *mempool) ReadyFromIDs(currentTime time.Time, reqIDs ...iscp.RequestID) ([]iscp.Request, []int, bool) {
 	requests := make([]iscp.Request, 0, len(reqIDs))
 	missingRequestIndexes := []int{}
 	toRemove := []iscp.RequestID{}
@@ -426,7 +426,7 @@ func (m *mempool) WaitPoolEmpty(timeout ...time.Duration) bool {
 }
 
 // Stats collects mempool stats
-func (m *mempool) Info(currentTime iscp.TimeData) MempoolInfo {
+func (m *mempool) Info(currentTime time.Time) MempoolInfo {
 	m.poolMutex.RLock()
 	defer m.poolMutex.RUnlock()
 

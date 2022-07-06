@@ -11,12 +11,12 @@ import (
 	"github.com/iotaledger/wasp/packages/chain/messages"
 	"github.com/iotaledger/wasp/packages/hashing"
 	"github.com/iotaledger/wasp/packages/iscp"
-	"github.com/iotaledger/wasp/packages/kv/trie"
 	"github.com/iotaledger/wasp/packages/state"
 )
 
-func (c *consensus) EnqueueStateTransitionMsg(virtualState state.VirtualStateAccess, stateOutput *iscp.AliasOutputWithID, stateTimestamp time.Time) {
+func (c *consensus) EnqueueStateTransitionMsg(isGovernance bool, virtualState state.VirtualStateAccess, stateOutput *iscp.AliasOutputWithID, stateTimestamp time.Time) {
 	c.eventStateTransitionMsgPipe.In() <- &messages.StateTransitionMsg{
+		IsGovernance:   isGovernance,
 		State:          virtualState,
 		StateOutput:    stateOutput,
 		StateTimestamp: stateTimestamp,
@@ -24,8 +24,8 @@ func (c *consensus) EnqueueStateTransitionMsg(virtualState state.VirtualStateAcc
 }
 
 func (c *consensus) handleStateTransitionMsg(msg *messages.StateTransitionMsg) {
-	c.log.Debugf("StateTransitionMsg received: state index: %d, state output: %s, timestamp: %v",
-		msg.State.BlockIndex(), iscp.OID(msg.StateOutput.ID()), msg.StateTimestamp)
+	c.log.Debugf("StateTransitionMsg received: governance updated: %v, state index: %d, state output: %s, timestamp: %v",
+		msg.IsGovernance, msg.State.BlockIndex(), iscp.OID(msg.StateOutput.ID()), msg.StateTimestamp)
 	if c.setNewState(msg) {
 		c.takeAction()
 	}
@@ -95,7 +95,7 @@ func (c *consensus) handleVMResultMsg(msg *messages.VMResultMsg) {
 		}
 	}
 	c.log.Debugf("VMResultMsg received: state index: %d state commitment: %s %s",
-		msg.Task.VirtualStateAccess.BlockIndex(), trie.RootCommitment(msg.Task.VirtualStateAccess.TrieNodeStore()), essenceString)
+		msg.Task.VirtualStateAccess.BlockIndex(), state.RootCommitment(msg.Task.VirtualStateAccess.TrieNodeStore()), essenceString)
 	c.processVMResult(msg.Task)
 	c.takeAction()
 }

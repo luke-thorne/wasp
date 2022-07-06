@@ -43,7 +43,7 @@ func NewRequestFromMarshalUtil(mu *marshalutil.MarshalUtil) (Request, error) {
 	default:
 		panic(fmt.Sprintf("no handler for request kind %d", kind))
 	}
-	if err = r.readFromMarshalUtil(mu); err != nil {
+	if err := r.readFromMarshalUtil(mu); err != nil {
 		return nil, err
 	}
 	return r, nil
@@ -83,11 +83,11 @@ func (s *offLedgerSignatureScheme) readEssence(mu *marshalutil.MarshalUtil) erro
 	if err != nil {
 		return err
 	}
-	if publicKey, err := mu.ReadBytes(int(pkLen)); err != nil {
+	publicKey, err := mu.ReadBytes(int(pkLen))
+	if err != nil {
 		return err
-	} else {
-		s.publicKey, err = cryptolib.NewPublicKeyFromBytes(publicKey)
 	}
+	s.publicKey, err = cryptolib.NewPublicKeyFromBytes(publicKey)
 	return err
 }
 
@@ -119,8 +119,10 @@ func (r *offLedgerRequestData) IsOffLedger() bool {
 	return true
 }
 
-var _ UnsignedOffLedgerRequest = &offLedgerRequestData{}
-var _ OffLedgerRequest = &offLedgerRequestData{}
+var (
+	_ UnsignedOffLedgerRequest = &offLedgerRequestData{}
+	_ OffLedgerRequest         = &offLedgerRequestData{}
+)
 
 func (r *offLedgerRequestData) ChainID() *ChainID {
 	return r.chainID
@@ -129,12 +131,12 @@ func (r *offLedgerRequestData) ChainID() *ChainID {
 // implements Features interface
 var _ Features = &offLedgerRequestData{}
 
-func (r *offLedgerRequestData) TimeLock() *TimeData {
-	return nil
+func (r *offLedgerRequestData) TimeLock() time.Time {
+	return time.Time{}
 }
 
-func (r *offLedgerRequestData) Expiry() (*TimeData, iotago.Address) {
-	return nil, nil
+func (r *offLedgerRequestData) Expiry() (time.Time, iotago.Address) {
+	return time.Time{}, nil
 }
 
 func (r *offLedgerRequestData) ReturnAmount() (uint64, bool) {
@@ -148,14 +150,6 @@ func (r *offLedgerRequestData) Bytes() []byte {
 	mu := marshalutil.New()
 	r.WriteToMarshalUtil(mu)
 	return mu.Bytes()
-}
-
-func newOffLedgerRequestFromMarshalUtil(mu *marshalutil.MarshalUtil) (OffLedgerRequest, error) {
-	ret := &offLedgerRequestData{}
-	if err := ret.readFromMarshalUtil(mu); err != nil {
-		return nil, err
-	}
-	return ret, nil
 }
 
 func (r *offLedgerRequestData) WriteToMarshalUtil(mu *marshalutil.MarshalUtil) {
@@ -214,7 +208,7 @@ func (r *offLedgerRequestData) readEssenceFromMarshalUtil(mu *marshalutil.Marsha
 		return err
 	}
 	r.signatureScheme = &offLedgerSignatureScheme{}
-	if err = r.signatureScheme.readEssence(mu); err != nil {
+	if err := r.signatureScheme.readEssence(mu); err != nil {
 		return err
 	}
 	if r.allowance, err = AllowanceFromMarshalUtil(mu); err != nil {
@@ -307,14 +301,14 @@ func (r *offLedgerRequestData) Timestamp() time.Time {
 	return time.Time{}
 }
 
-func (r *offLedgerRequestData) GasBudget() (gas uint64, isEVM bool) {
+func (r *offLedgerRequestData) GasBudget() (gasBudget uint64, isEVM bool) {
 	return r.gasBudget, false
 }
 
 func (r *offLedgerRequestData) String() string {
 	return fmt.Sprintf("offLedgerRequestData::{ ID: %s, sender: %s, target: %s, entrypoint: %s, Params: %s, nonce: %d }",
 		r.ID().String(),
-		"**not impl**", // TODO r.SenderAddress().Base58(),
+		r.SenderAccount().String(),
 		r.contract.String(),
 		r.entryPoint.String(),
 		r.Params().String(),
@@ -506,7 +500,7 @@ func (r *onLedgerRequestData) FungibleTokens() *FungibleTokens {
 	return NewFungibleTokens(amount, tokens)
 }
 
-func (r *onLedgerRequestData) GasBudget() (gas uint64, isEVM bool) {
+func (r *onLedgerRequestData) GasBudget() (gasBudget uint64, isEVM bool) {
 	return r.requestMetadata.GasBudget, false
 }
 
@@ -563,30 +557,21 @@ func (r *onLedgerRequestData) IsInternalUTXO(chinID *ChainID) bool {
 // implements Features interface
 var _ Features = &onLedgerRequestData{}
 
-func (r *onLedgerRequestData) TimeLock() *TimeData {
+func (r *onLedgerRequestData) TimeLock() time.Time {
 	timelock := r.unlockConditions.Timelock()
 	if timelock == nil {
-		return nil
+		return time.Time{}
 	}
-	ret := &TimeData{}
-	ret.MilestoneIndex = timelock.MilestoneIndex
-	if timelock.UnixTime != 0 {
-		ret.Time = time.Unix(int64(timelock.UnixTime), 0)
-	}
-	return ret
+	return time.Unix(int64(timelock.UnixTime), 0)
 }
 
-func (r *onLedgerRequestData) Expiry() (*TimeData, iotago.Address) {
+func (r *onLedgerRequestData) Expiry() (time.Time, iotago.Address) {
 	expiration := r.unlockConditions.Expiration()
 	if expiration == nil {
-		return nil, nil
+		return time.Time{}, nil
 	}
-	ret := &TimeData{}
-	ret.MilestoneIndex = expiration.MilestoneIndex
-	if expiration.UnixTime != 0 {
-		ret.Time = time.Unix(int64(expiration.UnixTime), 0)
-	}
-	return ret, expiration.ReturnAddress
+
+	return time.Unix(int64(expiration.UnixTime), 0), expiration.ReturnAddress
 }
 
 func (r *onLedgerRequestData) ReturnAmount() (uint64, bool) {

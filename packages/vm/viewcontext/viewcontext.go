@@ -6,6 +6,9 @@ import (
 
 	"github.com/iotaledger/hive.go/logger"
 	iotago "github.com/iotaledger/iota.go/v3"
+	"github.com/iotaledger/trie.go/models/trie_blake2b"
+	"github.com/iotaledger/trie.go/models/trie_blake2b/trie_blake2b_verify"
+	"github.com/iotaledger/trie.go/trie"
 	"github.com/iotaledger/wasp/packages/chain"
 	"github.com/iotaledger/wasp/packages/hashing"
 	"github.com/iotaledger/wasp/packages/iscp"
@@ -13,8 +16,6 @@ import (
 	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/kv/dict"
 	"github.com/iotaledger/wasp/packages/kv/subrealm"
-	"github.com/iotaledger/wasp/packages/kv/trie"
-	"github.com/iotaledger/wasp/packages/kv/trie_merkle"
 	"github.com/iotaledger/wasp/packages/parameters"
 	"github.com/iotaledger/wasp/packages/state"
 	"github.com/iotaledger/wasp/packages/util/panicutil"
@@ -138,14 +139,6 @@ func (ctx *ViewContext) ChainOwnerID() iscp.AgentID {
 	return ctx.chainInfo.ChainOwnerID
 }
 
-func (ctx *ViewContext) ContractCreator() iscp.AgentID {
-	rec := ctx.GetContractRecord(ctx.CurrentContractHname())
-	if rec == nil {
-		panic("can't find current contract")
-	}
-	return rec.Creator
-}
-
 func (ctx *ViewContext) CurrentContractHname() iscp.Hname {
 	return ctx.getCallContext().contract
 }
@@ -218,9 +211,9 @@ func (ctx *ViewContext) CallViewExternal(targetContract, epCode iscp.Hname, para
 }
 
 // GetMerkleProof returns proof for the key. It may also contain proof of absence of the key
-func (ctx *ViewContext) GetMerkleProof(key []byte) (ret *trie_merkle.Proof, err error) {
+func (ctx *ViewContext) GetMerkleProof(key []byte) (ret *trie_blake2b.Proof, err error) {
 	err = panicutil.CatchAllButDBError(func() {
-		ret = state.CommitmentModel.Proof(key, ctx.stateReader.TrieNodeStore())
+		ret = state.GetMerkleProof(key, ctx.stateReader.TrieNodeStore())
 	}, ctx.log, "GetMerkleProof: ")
 
 	if err != nil {
@@ -233,9 +226,9 @@ func (ctx *ViewContext) GetMerkleProof(key []byte) (ret *trie_merkle.Proof, err 
 // - blockInfo record in serialized form
 // - proof that the blockInfo is stored under the respective key.
 // Useful for proving commitment to the past state, because blockInfo contains commitment to that block
-func (ctx *ViewContext) GetBlockProof(blockIndex uint32) ([]byte, *trie_merkle.Proof, error) {
+func (ctx *ViewContext) GetBlockProof(blockIndex uint32) ([]byte, *trie_blake2b.Proof, error) {
 	var retBlockInfoBin []byte
-	var retProof *trie_merkle.Proof
+	var retProof *trie_blake2b.Proof
 
 	err := panicutil.CatchAllButDBError(func() {
 		// retrieve serialized block info record
@@ -249,7 +242,7 @@ func (ctx *ViewContext) GetBlockProof(blockIndex uint32) ([]byte, *trie_merkle.P
 
 		// retrieve proof to serialized block
 		key := blocklog.Contract.FullKey(blocklog.BlockInfoKey(blockIndex))
-		retProof = state.CommitmentModel.Proof(key, ctx.stateReader.TrieNodeStore())
+		retProof = state.GetMerkleProof(key, ctx.stateReader.TrieNodeStore())
 	}, ctx.log, "GetMerkleProof: ")
 
 	return retBlockInfoBin, retProof, err
@@ -271,18 +264,18 @@ func (ctx *ViewContext) GetRootCommitment() (trie.VCommitment, error) {
 // GetContractStateCommitment returns commitment to the contract's state, if possible.
 // To be able to retrieve state commitment for the contract's state, the state must contain
 // values of contracts hname at its nil key. Otherwise, function returns error
-func (ctx *ViewContext) GetContractStateCommitment(hn iscp.Hname) (trie.VCommitment, error) {
-	var retC trie.VCommitment
+func (ctx *ViewContext) GetContractStateCommitment(hn iscp.Hname) ([]byte, error) {
+	var retC []byte
 	var retErr error
 
 	err := panicutil.CatchAllButDBError(func() {
-		proof := state.CommitmentModel.Proof(hn.Bytes(), ctx.stateReader.TrieNodeStore())
+		proof := state.GetMerkleProof(hn.Bytes(), ctx.stateReader.TrieNodeStore())
 		rootC := trie.RootCommitment(ctx.stateReader.TrieNodeStore())
-		retErr = proof.Validate(rootC, hn.Bytes())
+		retErr = state.ValidateMerkleProof(proof, rootC, hn.Bytes())
 		if retErr != nil {
 			return
 		}
-		retC = proof.CommitmentToTheTerminalNode()
+		retC = trie_blake2b_verify.CommitmentToTheTerminalNode(proof)
 	}, ctx.log, "GetMerkleProof: ")
 	if err != nil {
 		return nil, err

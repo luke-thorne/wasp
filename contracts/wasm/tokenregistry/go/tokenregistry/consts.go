@@ -5,6 +5,7 @@
 // >>>> DO NOT CHANGE THIS FILE! <<<<
 // Change the json schema instead
 
+//nolint:revive
 package tokenregistry
 
 import "github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib/wasmtypes"
@@ -17,16 +18,19 @@ const (
 
 const (
 	ParamDescription = "description"
+	ParamOwner       = "owner"
 	ParamToken       = "token"
 	ParamUserDefined = "userDefined"
 )
 
 const (
+	StateOwner     = "owner"
 	StateRegistry  = "registry"
 	StateTokenList = "tokenList"
 )
 
 const (
+	FuncInit              = "init"
 	FuncMintSupply        = "mintSupply"
 	FuncTransferOwnership = "transferOwnership"
 	FuncUpdateMetadata    = "updateMetadata"
@@ -34,6 +38,7 @@ const (
 )
 
 const (
+	HFuncInit              = wasmtypes.ScHname(0x1f44d644)
 	HFuncMintSupply        = wasmtypes.ScHname(0x564349a7)
 	HFuncTransferOwnership = wasmtypes.ScHname(0xbb9eb5af)
 	HFuncUpdateMetadata    = wasmtypes.ScHname(0xa26b23b6)

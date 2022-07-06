@@ -36,6 +36,10 @@ var (
 	// evm SC management
 	FuncSetGasRatio = coreutil.Func(evmnames.FuncSetGasRatio)
 	FuncGetGasRatio = coreutil.ViewFunc(evmnames.FuncGetGasRatio)
+
+	// block context
+	FuncOpenBlockContext  = coreutil.Func(evmnames.FuncOpenBlockContext)
+	FuncCloseBlockContext = coreutil.Func(evmnames.FuncCloseBlockContext)
 )
 
 const (
@@ -67,7 +71,5 @@ const (
 	BlockKeepAmountDefault = BlockKeepAll
 )
 
-var (
-	// Gas is charged in iotas, not ETH
-	GasPrice = big.NewInt(0)
-)
+// Gas is charged in iotas, not ETH
+var GasPrice = big.NewInt(0)

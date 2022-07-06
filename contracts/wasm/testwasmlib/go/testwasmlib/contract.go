@@ -234,6 +234,69 @@ type BlockRecordsCall struct {
 	Results ImmutableBlockRecordsResults
 }
 
+type CheckAddressCall struct {
+	Func   *wasmlib.ScView
+	Params MutableCheckAddressParams
+}
+
+type CheckAgentIDCall struct {
+	Func   *wasmlib.ScView
+	Params MutableCheckAgentIDParams
+}
+
+type CheckBigIntCall struct {
+	Func   *wasmlib.ScView
+	Params MutableCheckBigIntParams
+}
+
+type CheckBoolCall struct {
+	Func *wasmlib.ScView
+}
+
+type CheckBytesCall struct {
+	Func   *wasmlib.ScView
+	Params MutableCheckBytesParams
+}
+
+type CheckEthAddressAndAgentIDCall struct {
+	Func   *wasmlib.ScView
+	Params MutableCheckEthAddressAndAgentIDParams
+}
+
+type CheckHashCall struct {
+	Func   *wasmlib.ScView
+	Params MutableCheckHashParams
+}
+
+type CheckHnameCall struct {
+	Func   *wasmlib.ScView
+	Params MutableCheckHnameParams
+}
+
+type CheckIntAndUintCall struct {
+	Func *wasmlib.ScView
+}
+
+type CheckNftIDCall struct {
+	Func   *wasmlib.ScView
+	Params MutableCheckNftIDParams
+}
+
+type CheckRequestIDCall struct {
+	Func   *wasmlib.ScView
+	Params MutableCheckRequestIDParams
+}
+
+type CheckStringCall struct {
+	Func   *wasmlib.ScView
+	Params MutableCheckStringParams
+}
+
+type CheckTokenIDCall struct {
+	Func   *wasmlib.ScView
+	Params MutableCheckTokenIDParams
+}
+
 type GetRandomCall struct {
 	Func    *wasmlib.ScView
 	Results ImmutableGetRandomResults
@@ -527,6 +590,80 @@ func (sc Funcs) BlockRecords(ctx wasmlib.ScViewCallContext) *BlockRecordsCall {
 	f := &BlockRecordsCall{Func: wasmlib.NewScView(ctx, HScName, HViewBlockRecords)}
 	f.Params.proxy = wasmlib.NewCallParamsProxy(f.Func)
 	wasmlib.NewCallResultsProxy(f.Func, &f.Results.proxy)
+	return f
+}
+
+func (sc Funcs) CheckAddress(ctx wasmlib.ScViewCallContext) *CheckAddressCall {
+	f := &CheckAddressCall{Func: wasmlib.NewScView(ctx, HScName, HViewCheckAddress)}
+	f.Params.proxy = wasmlib.NewCallParamsProxy(f.Func)
+	return f
+}
+
+func (sc Funcs) CheckAgentID(ctx wasmlib.ScViewCallContext) *CheckAgentIDCall {
+	f := &CheckAgentIDCall{Func: wasmlib.NewScView(ctx, HScName, HViewCheckAgentID)}
+	f.Params.proxy = wasmlib.NewCallParamsProxy(f.Func)
+	return f
+}
+
+func (sc Funcs) CheckBigInt(ctx wasmlib.ScViewCallContext) *CheckBigIntCall {
+	f := &CheckBigIntCall{Func: wasmlib.NewScView(ctx, HScName, HViewCheckBigInt)}
+	f.Params.proxy = wasmlib.NewCallParamsProxy(f.Func)
+	return f
+}
+
+func (sc Funcs) CheckBool(ctx wasmlib.ScViewCallContext) *CheckBoolCall {
+	return &CheckBoolCall{Func: wasmlib.NewScView(ctx, HScName, HViewCheckBool)}
+}
+
+func (sc Funcs) CheckBytes(ctx wasmlib.ScViewCallContext) *CheckBytesCall {
+	f := &CheckBytesCall{Func: wasmlib.NewScView(ctx, HScName, HViewCheckBytes)}
+	f.Params.proxy = wasmlib.NewCallParamsProxy(f.Func)
+	return f
+}
+
+func (sc Funcs) CheckEthAddressAndAgentID(ctx wasmlib.ScViewCallContext) *CheckEthAddressAndAgentIDCall {
+	f := &CheckEthAddressAndAgentIDCall{Func: wasmlib.NewScView(ctx, HScName, HViewCheckEthAddressAndAgentID)}
+	f.Params.proxy = wasmlib.NewCallParamsProxy(f.Func)
+	return f
+}
+
+func (sc Funcs) CheckHash(ctx wasmlib.ScViewCallContext) *CheckHashCall {
+	f := &CheckHashCall{Func: wasmlib.NewScView(ctx, HScName, HViewCheckHash)}
+	f.Params.proxy = wasmlib.NewCallParamsProxy(f.Func)
+	return f
+}
+
+func (sc Funcs) CheckHname(ctx wasmlib.ScViewCallContext) *CheckHnameCall {
+	f := &CheckHnameCall{Func: wasmlib.NewScView(ctx, HScName, HViewCheckHname)}
+	f.Params.proxy = wasmlib.NewCallParamsProxy(f.Func)
+	return f
+}
+
+func (sc Funcs) CheckIntAndUint(ctx wasmlib.ScViewCallContext) *CheckIntAndUintCall {
+	return &CheckIntAndUintCall{Func: wasmlib.NewScView(ctx, HScName, HViewCheckIntAndUint)}
+}
+
+func (sc Funcs) CheckNftID(ctx wasmlib.ScViewCallContext) *CheckNftIDCall {
+	f := &CheckNftIDCall{Func: wasmlib.NewScView(ctx, HScName, HViewCheckNftID)}
+	f.Params.proxy = wasmlib.NewCallParamsProxy(f.Func)
+	return f
+}
+
+func (sc Funcs) CheckRequestID(ctx wasmlib.ScViewCallContext) *CheckRequestIDCall {
+	f := &CheckRequestIDCall{Func: wasmlib.NewScView(ctx, HScName, HViewCheckRequestID)}
+	f.Params.proxy = wasmlib.NewCallParamsProxy(f.Func)
+	return f
+}
+
+func (sc Funcs) CheckString(ctx wasmlib.ScViewCallContext) *CheckStringCall {
+	f := &CheckStringCall{Func: wasmlib.NewScView(ctx, HScName, HViewCheckString)}
+	f.Params.proxy = wasmlib.NewCallParamsProxy(f.Func)
+	return f
+}
+
+func (sc Funcs) CheckTokenID(ctx wasmlib.ScViewCallContext) *CheckTokenIDCall {
+	f := &CheckTokenIDCall{Func: wasmlib.NewScView(ctx, HScName, HViewCheckTokenID)}
+	f.Params.proxy = wasmlib.NewCallParamsProxy(f.Func)
 	return f
 }
 

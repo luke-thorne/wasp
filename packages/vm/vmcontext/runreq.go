@@ -33,6 +33,8 @@ import (
 func (vmctx *VMContext) RunTheRequest(req iscp.Request, requestIndex uint16) (result *vm.RequestResult, err error) {
 	// prepare context for the request
 	vmctx.req = req
+	defer func() { vmctx.req = nil }() // in case `getToBeCaller()` is called afterwards
+
 	vmctx.NumPostedOutputs = 0
 	vmctx.requestIndex = requestIndex
 	vmctx.requestEventIndex = 0
@@ -64,13 +66,12 @@ func (vmctx *VMContext) RunTheRequest(req iscp.Request, requestIndex uint16) (re
 			// load gas and fee policy, calculate and set gas budget
 			vmctx.prepareGasBudget()
 			// run the contract program
-			receipt, callRet, callErr := vmctx.callTheContract()
+			receipt, callRet := vmctx.callTheContract()
 			vmctx.mustCheckTransactionSize()
 			result = &vm.RequestResult{
 				Request: req,
 				Receipt: receipt,
 				Return:  callRet,
-				Error:   callErr,
 			}
 		}, vmexceptions.AllProtocolLimits...,
 	)
@@ -131,13 +132,14 @@ func (vmctx *VMContext) prepareGasBudget() {
 }
 
 // callTheContract runs the contract. It catches and processes all panics except the one which cancel the whole block
-func (vmctx *VMContext) callTheContract() (receipt *blocklog.RequestReceipt, callRet dict.Dict, callErr error) {
+func (vmctx *VMContext) callTheContract() (receipt *blocklog.RequestReceipt, callRet dict.Dict) {
 	vmctx.txsnapshot = vmctx.createTxBuilderSnapshot()
 	snapMutations := vmctx.currentStateUpdate.Clone()
 
 	if vmctx.req.IsOffLedger() {
 		vmctx.updateOffLedgerRequestMaxAssumedNonce()
 	}
+	var callErr error
 	func() {
 		defer func() {
 			panicErr := vmctx.checkVMPluginPanic(recover())
@@ -163,7 +165,7 @@ func (vmctx *VMContext) callTheContract() (receipt *blocklog.RequestReceipt, cal
 	vmctx.chargeGasFee()
 	// write receipt no matter what
 	receipt = vmctx.writeReceiptToBlockLog(callErr)
-	return receipt, callRet, callErr
+	return receipt, callRet
 }
 
 func (vmctx *VMContext) checkVMPluginPanic(r interface{}) error {
@@ -301,6 +303,14 @@ func (vmctx *VMContext) calcGuaranteedFeeTokens() uint64 {
 // chargeGasFee takes burned tokens from the sender's account
 // It should always be enough because gas budget is set affordable
 func (vmctx *VMContext) chargeGasFee() {
+	// ensure at least the minimum amount of gas is charged
+	minGas := gas.BurnCodeMinimumGasPerRequest1P.Cost()
+	if vmctx.GasBurned() < minGas {
+		currentGas := vmctx.gasBurned
+		vmctx.gasBurned = minGas
+		vmctx.gasBurnedTotal += minGas - currentGas
+	}
+
 	// disable gas burn
 	vmctx.GasBurnEnable(false)
 	if vmctx.req.SenderAccount() == nil {

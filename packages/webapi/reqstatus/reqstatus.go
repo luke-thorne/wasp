@@ -145,16 +145,8 @@ func doGetTranslatedReceipt(ch chain.ChainRequests, reqID iscp.RequestID) (*mode
 	if err != nil {
 		return nil, xerrors.Errorf("error translating receipt: %s", err)
 	}
-	iscpReceipt := &iscp.Receipt{
-		Request:         receipt.Request.Bytes(),
-		Error:           receipt.Error,
-		GasBudget:       receipt.GasBudget,
-		GasBurned:       receipt.GasBurned,
-		GasFeeCharged:   receipt.GasFeeCharged,
-		BlockIndex:      receipt.BlockIndex,
-		RequestIndex:    receipt.RequestIndex,
-		TranslatedError: translatedError.Error(),
-	}
+	iscpReceipt := receipt.ToTranslatedReceipt(translatedError)
+
 	receiptJSON, err := json.Marshal(iscpReceipt)
 	if err != nil {
 		return nil, xerrors.Errorf("error marshaling receipt into JSON: %s", err)
@@ -166,10 +158,13 @@ func doGetTranslatedReceipt(ch chain.ChainRequests, reqID iscp.RequestID) (*mode
 
 func getTranslatedReceipt(ch chain.ChainRequests, reqID iscp.RequestID) (ret *model.RequestReceiptResponse, err error) {
 	err = optimism.RetryOnStateInvalidated(func() (err error) {
-		panicutil.CatchPanicReturnError(func() {
+		panicCatchErr := panicutil.CatchPanicReturnError(func() {
 			ret, err = doGetTranslatedReceipt(ch, reqID)
 		}, coreutil.ErrorStateInvalidated)
-		return err
+		if err != nil {
+			return err
+		}
+		return panicCatchErr
 	})
 	return ret, err
 }

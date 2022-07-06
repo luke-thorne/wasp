@@ -104,9 +104,10 @@ func viewGetRequestIDsForBlock(ctx iscp.SandboxView) dict.Dict {
 func viewGetRequestReceipt(ctx iscp.SandboxView) dict.Dict {
 	requestID := ctx.Params().MustGetRequestID(ParamRequestID)
 	res, err := GetRequestRecordDataByRequestID(ctx.State(), requestID)
-
 	ctx.RequireNoError(err)
-
+	if res == nil {
+		return nil
+	}
 	return dict.Dict{
 		ParamRequestRecord: res.ReceiptBin,
 		ParamBlockIndex:    codec.EncodeUint32(res.BlockIndex),
@@ -134,6 +135,7 @@ func viewGetRequestReceiptsForBlock(ctx iscp.SandboxView) dict.Dict {
 	for _, d := range dataArr {
 		arr.MustPush(d)
 	}
+	ret.Set(ParamBlockIndex, codec.Encode(blockIndex))
 	return ret
 }
 
