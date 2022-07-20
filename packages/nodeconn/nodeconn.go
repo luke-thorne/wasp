@@ -50,6 +50,7 @@ func setL1ProtocolParams(info *nodeclient.InfoResponse) {
 		// There are no limits on how big from a size perspective an essence can be, so it is just derived from 32KB - Block fields without payload = max size of the payload
 		MaxTransactionSize: 32000, // TODO should this value come from the API in the future? or some const in iotago?
 		Protocol:           &info.Protocol,
+		BaseToken:          (*parameters.BaseToken)(info.BaseToken),
 	}
 }
 
@@ -278,12 +279,12 @@ func (nc *nodeConn) waitUntilConfirmed(ctx context.Context, block *iotago.Block)
 			return xerrors.Errorf("failed to get msg metadata: %w", err)
 		}
 
-		if metadataResp.ReferencedByMilestoneIndex != nil {
-			if metadataResp.LedgerInclusionState != nil && *metadataResp.LedgerInclusionState == "included" {
+		if metadataResp.ReferencedByMilestoneIndex != 0 {
+			if metadataResp.LedgerInclusionState != "" && metadataResp.LedgerInclusionState == "included" {
 				return nil // success
 			}
 			return xerrors.Errorf("tx was not included in the ledger. LedgerInclusionState: %s, ConflictReason: %d",
-				*metadataResp.LedgerInclusionState, metadataResp.ConflictReason)
+				metadataResp.LedgerInclusionState, metadataResp.ConflictReason)
 		}
 		// reattach or promote if needed
 		if metadataResp.ShouldPromote != nil && *metadataResp.ShouldPromote {
