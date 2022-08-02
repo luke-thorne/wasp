@@ -6,7 +6,7 @@ import (
 
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/wasp/packages/cryptolib"
-	"github.com/iotaledger/wasp/packages/iscp"
+	"github.com/iotaledger/wasp/packages/isc"
 	"github.com/iotaledger/wasp/packages/parameters"
 	"github.com/iotaledger/wasp/packages/util"
 	"golang.org/x/xerrors"
@@ -51,7 +51,7 @@ func FilterType(t iotago.OutputType) OutputFilter {
 }
 
 // GetAnchorFromTransaction analyzes the output at index 0 and extracts anchor information. Otherwise error
-func GetAnchorFromTransaction(tx *iotago.Transaction) (*iscp.StateAnchor, *iotago.AliasOutput, error) {
+func GetAnchorFromTransaction(tx *iotago.Transaction) (*isc.StateAnchor, *iotago.AliasOutput, error) {
 	anchorOutput, ok := tx.Essence.Outputs[0].(*iotago.AliasOutput)
 	if !ok {
 		return nil, nil, ErrNoAliasOutputAtIndex0
@@ -67,10 +67,10 @@ func GetAnchorFromTransaction(tx *iotago.Transaction) (*iscp.StateAnchor, *iotag
 		isOrigin = true
 		aliasID = iotago.AliasIDFromOutputID(iotago.OutputIDFromTransactionIDAndIndex(txid, 0))
 	}
-	return &iscp.StateAnchor{
+	return &isc.StateAnchor{
 		IsOrigin:             isOrigin,
 		OutputID:             iotago.OutputIDFromTransactionIDAndIndex(txid, 0),
-		ChainID:              iscp.ChainIDFromAliasID(aliasID),
+		ChainID:              isc.ChainIDFromAliasID(aliasID),
 		StateController:      anchorOutput.StateController(),
 		GovernanceController: anchorOutput.GovernorAddress(),
 		StateIndex:           anchorOutput.StateIndex,
@@ -80,7 +80,7 @@ func GetAnchorFromTransaction(tx *iotago.Transaction) (*iscp.StateAnchor, *iotag
 }
 
 // computeInputsAndRemainder computes inputs and remainder for given outputs balances.
-// Takes into account minimum dust deposit requirements
+// Takes into account minimum storage deposit requirements
 // The inputs are consumed one by one in the order provided in the parameters.
 // Consumes only what is needed to cover output balances
 // Returned reminder is nil if not needed
@@ -154,8 +154,8 @@ func computeInputsAndRemainder(
 // computeRemainderOutput calculates remainders for base tokens and native tokens, returns skeleton remainder output
 // which only contains assets filled in.
 // - inBaseTokens and inTokens is what is available in inputs
-// - outBaseTokens, outTokens is what is in outputs, except the remainder output itself with its dust deposit
-// Returns (nil, error) if inputs are not enough (taking into account dust deposit requirements)
+// - outBaseTokens, outTokens is what is in outputs, except the remainder output itself with its storage deposit
+// Returns (nil, error) if inputs are not enough (taking into account storage deposit requirements)
 // If return (nil, nil) it means remainder is a perfect match between inputs and outputs, remainder not needed
 func computeRemainderOutput(senderAddress iotago.Address, inBaseTokens, outBaseTokens uint64, inTokens, outTokens map[iotago.NativeTokenID]*big.Int) (*iotago.BasicOutput, error) {
 	if inBaseTokens < outBaseTokens {
@@ -223,7 +223,7 @@ func computeRemainderOutput(senderAddress iotago.Address, inBaseTokens, outBaseT
 	}
 	storageDeposit := parameters.L1.Protocol.RentStructure.MinRent(ret)
 	if ret.Amount < storageDeposit {
-		return nil, xerrors.Errorf("%v: needed at least %d", ErrNotEnoughBaseTokensForDustDeposit, storageDeposit)
+		return nil, xerrors.Errorf("%v: needed at least %d", ErrNotEnoughBaseTokensForStorageDeposit, storageDeposit)
 	}
 	return ret, nil
 }
@@ -280,7 +280,7 @@ func CreateAndSignTx(inputs iotago.OutputIDs, inputsCommitment []byte, outputs i
 	}, nil
 }
 
-func GetAliasOutput(tx *iotago.Transaction, aliasAddr iotago.Address) (*iscp.AliasOutputWithID, error) {
+func GetAliasOutput(tx *iotago.Transaction, aliasAddr iotago.Address) (*isc.AliasOutputWithID, error) {
 	txID, err := tx.ID()
 	if err != nil {
 		return nil, err
@@ -299,7 +299,7 @@ func GetAliasOutput(tx *iotago.Transaction, aliasAddr iotago.Address) (*iscp.Ali
 				found = aliasID.ToAddress().Equal(aliasAddr)
 			}
 			if found {
-				return iscp.NewAliasOutputWithID(out, oid), nil
+				return isc.NewAliasOutputWithID(out, oid), nil
 			}
 		}
 	}

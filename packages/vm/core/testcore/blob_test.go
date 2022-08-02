@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/iotaledger/wasp/packages/hashing"
-	"github.com/iotaledger/wasp/packages/iscp"
+	"github.com/iotaledger/wasp/packages/isc"
 	"github.com/iotaledger/wasp/packages/kv"
 	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/solo"
@@ -22,7 +22,7 @@ const (
 
 func TestUploadBlob(t *testing.T) {
 	t.Run("from binary", func(t *testing.T) {
-		env := solo.New(t, &solo.InitOptions{AutoAdjustDustDeposit: true})
+		env := solo.New(t, &solo.InitOptions{AutoAdjustStorageDeposit: true})
 		ch := env.NewChain(nil, "chain1")
 
 		ch.MustDepositBaseTokensToL2(100_000, nil)
@@ -119,7 +119,7 @@ func TestUploadWasm(t *testing.T) {
 		require.EqualValues(t, binary, binBack)
 	})
 	t.Run("upload wasm from file", func(t *testing.T) {
-		env := solo.New(t, &solo.InitOptions{AutoAdjustDustDeposit: true})
+		env := solo.New(t, &solo.InitOptions{AutoAdjustStorageDeposit: true})
 		ch := env.NewChain(nil, "chain1")
 		ch.MustDepositBaseTokensToL2(100_000, nil)
 		progHash, err := ch.UploadWasmFromFile(nil, wasmFile)
@@ -142,7 +142,7 @@ func TestUploadWasm(t *testing.T) {
 }
 
 func TestBigBlob(t *testing.T) {
-	env := solo.New(t, &solo.InitOptions{AutoAdjustDustDeposit: true})
+	env := solo.New(t, &solo.InitOptions{AutoAdjustStorageDeposit: true})
 	ch := env.NewChain(nil, "chain1")
 
 	// upload a blob that is too big
@@ -151,7 +151,7 @@ func TestBigBlob(t *testing.T) {
 
 	_, err := ch.UploadWasm(ch.OriginatorPrivateKey, blobBin)
 
-	unresolvedError := err.(*iscp.UnresolvedVMError)
+	unresolvedError := err.(*isc.UnresolvedVMError)
 	resolvedError := ch.ResolveVMError(unresolvedError)
 
 	testmisc.RequireErrorToBe(t, resolvedError, "blob too big")

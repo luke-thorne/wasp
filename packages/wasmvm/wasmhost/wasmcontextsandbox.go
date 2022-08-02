@@ -8,7 +8,7 @@ import (
 
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/wasp/packages/hashing"
-	"github.com/iotaledger/wasp/packages/iscp"
+	"github.com/iotaledger/wasp/packages/isc"
 	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/kv/dict"
 	"github.com/iotaledger/wasp/packages/parameters"
@@ -33,7 +33,7 @@ var sandboxFunctions = []func(*WasmContextSandbox, []byte) []byte{
 	(*WasmContextSandbox).fnContract,
 	(*WasmContextSandbox).fnDeployContract,
 	(*WasmContextSandbox).fnEntropy,
-	(*WasmContextSandbox).fnEstimateDust,
+	(*WasmContextSandbox).fnEstimateStorageDeposit,
 	(*WasmContextSandbox).fnEvent,
 	(*WasmContextSandbox).fnLog,
 	(*WasmContextSandbox).fnMinted,
@@ -79,7 +79,7 @@ var sandboxFuncNames = []string{
 	"FnContract",
 	"#FnDeployContract",
 	"FnEntropy",
-	"#FnEstimateDust",
+	"#FnEstimateStorageDeposit",
 	"$FnEvent",
 	"$FnLog",
 	"FnMinted",
@@ -111,9 +111,9 @@ var sandboxFuncNames = []string{
 // It acts as a change-resistant layer to wrap changes to the ISCP sandbox,
 // to limit bothering users of WasmLib as little as possible with those changes.
 type WasmContextSandbox struct {
-	common  iscp.SandboxBase
-	ctx     iscp.Sandbox
-	ctxView iscp.SandboxView
+	common  isc.SandboxBase
+	ctx     isc.Sandbox
+	ctxView isc.SandboxView
 	cvt     WasmConvertor
 	wc      *WasmContext
 }
@@ -125,14 +125,14 @@ var EventSubscribers []func(msg string)
 func NewWasmContextSandbox(wc *WasmContext, ctx interface{}) *WasmContextSandbox {
 	s := &WasmContextSandbox{wc: wc}
 	switch tctx := ctx.(type) {
-	case iscp.Sandbox:
+	case isc.Sandbox:
 		s.common = tctx
 		s.ctx = tctx
-	case iscp.SandboxView:
+	case isc.SandboxView:
 		s.common = tctx
 		s.ctxView = tctx
 	default:
-		panic(iscp.ErrWrongTypeEntryPoint)
+		panic(isc.ErrWrongTypeEntryPoint)
 	}
 	return s
 }
@@ -147,7 +147,7 @@ func (s *WasmContextSandbox) checkErr(err error) {
 	}
 }
 
-func (s *WasmContextSandbox) makeRequest(args []byte) iscp.RequestParameters {
+func (s *WasmContextSandbox) makeRequest(args []byte) isc.RequestParameters {
 	req := wasmrequests.NewPostRequestFromBytes(args)
 	chainID := s.cvt.IscpChainID(&req.ChainID)
 	contract := s.cvt.IscpHname(req.Contract)
@@ -160,19 +160,19 @@ func (s *WasmContextSandbox) makeRequest(args []byte) iscp.RequestParameters {
 	if allowance.IsEmpty() {
 		allowance = transfer
 	}
-	// Force a minimum transfer of 1million base tokens for dust and some gas
+	// Force a minimum transfer of 1million base tokens for storage deposit and some gas
 	// excess can always be reclaimed from the chain account by the user
-	if !transfer.IsEmpty() && transfer.Assets.BaseTokens < 1*iscp.Mi {
+	if !transfer.IsEmpty() && transfer.Assets.BaseTokens < 1*isc.Million {
 		transfer = transfer.Clone()
-		transfer.Assets.BaseTokens = 1 * iscp.Mi
+		transfer.Assets.BaseTokens = 1 * isc.Million
 	}
 
 	s.Tracef("POST %s.%s, chain %s", contract.String(), function.String(), chainID.String())
-	sendReq := iscp.RequestParameters{
-		AdjustToMinimumDustDeposit: true,
-		TargetAddress:              chainID.AsAddress(),
-		FungibleTokens:             transfer.Assets,
-		Metadata: &iscp.SendMetadata{
+	sendReq := isc.RequestParameters{
+		AdjustToMinimumStorageDeposit: true,
+		TargetAddress:                 chainID.AsAddress(),
+		FungibleTokens:                transfer.Assets,
+		Metadata: &isc.SendMetadata{
 			TargetContract: contract,
 			EntryPoint:     function,
 			Params:         params,
@@ -217,7 +217,7 @@ func (s *WasmContextSandbox) fnBalance(args []byte) []byte {
 }
 
 func (s *WasmContextSandbox) fnBalances(_ []byte) []byte {
-	allowance := &iscp.Allowance{}
+	allowance := &isc.Allowance{}
 	allowance.Assets = s.common.BalanceFungibleTokens()
 	allowance.NFTs = s.common.OwnedNFTs()
 	return s.cvt.ScBalances(allowance).Bytes()
@@ -239,7 +239,7 @@ func (s *WasmContextSandbox) fnCall(args []byte) []byte {
 	return results.Bytes()
 }
 
-func (s *WasmContextSandbox) callUnlocked(contract, function iscp.Hname, params dict.Dict, transfer *iscp.Allowance) dict.Dict {
+func (s *WasmContextSandbox) callUnlocked(contract, function isc.Hname, params dict.Dict, transfer *isc.Allowance) dict.Dict {
 	// TODO is this really necessary? We should not be able to call in parallel
 	s.wc.proc.instanceLock.Unlock()
 	defer s.wc.proc.instanceLock.Lock()
@@ -289,9 +289,9 @@ func (s *WasmContextSandbox) fnEntropy(_ []byte) []byte {
 	return s.cvt.ScHash(s.ctx.GetEntropy()).Bytes()
 }
 
-func (s *WasmContextSandbox) fnEstimateDust(args []byte) []byte {
-	dust := s.ctx.EstimateRequiredDustDeposit(s.makeRequest(args))
-	return codec.EncodeUint64(dust)
+func (s *WasmContextSandbox) fnEstimateStorageDeposit(args []byte) []byte {
+	storageDeposit := s.ctx.EstimateRequiredStorageDeposit(s.makeRequest(args))
+	return codec.EncodeUint64(storageDeposit)
 }
 
 func (s *WasmContextSandbox) fnEvent(args []byte) []byte {
@@ -356,10 +356,10 @@ func (s *WasmContextSandbox) fnSend(args []byte) []byte {
 	scAssets := wasmlib.NewScAssets(req.Transfer)
 	if !scAssets.IsEmpty() {
 		allowance := s.cvt.IscpAllowance(scAssets)
-		metadata := iscp.RequestParameters{
-			AdjustToMinimumDustDeposit: true,
-			TargetAddress:              address,
-			FungibleTokens:             allowance.Assets,
+		metadata := isc.RequestParameters{
+			AdjustToMinimumStorageDeposit: true,
+			TargetAddress:                 address,
+			FungibleTokens:                allowance.Assets,
 		}
 		if len(allowance.NFTs) == 0 {
 			s.ctx.Send(metadata)
