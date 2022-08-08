@@ -4,7 +4,7 @@
 project = "iscp"
 
 # Labels can be specified for organizational purposes.
-labels = { "team" = "iscp" }
+labels = { "team" = "isc" }
 
 variable "adminWhitelist" {
     type = list(string)

@@ -1,17 +1,13 @@
 # The name of your project. A project typically maps 1:1 to a VCS repository.
 # This name must be unique for your Waypoint server. If you're running in
 # local mode, this must be unique to your machine.
-project = "evm_server"
+project = "iscp"
 
 # Labels can be specified for organizational purposes.
-labels = { "team" = "iscp" }
+labels = { "team" = "isc" }
 
 variable "chainid" {
     type = string
-<<<<<<< HEAD
-    default = "hw2NQS3SAy59TAVecuzvBCKXHcs7QTsuwfXGEbQ1yGWA"
-=======
->>>>>>> c5552071e41cfb115dc6dfbe76c124f9d9ac78d2
 }
 
 variable "wallet_seed" {
