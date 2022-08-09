@@ -6,7 +6,7 @@ project = "iscp"
 # Labels can be specified for organizational purposes.
 labels = { "team" = "iscp" }
 
-variable "chainid" {
+variable "chain_id" {
     type = string
 }
 
@@ -61,7 +61,7 @@ app "wasp-evm-server" {
             jobspec = templatefile("${path.app}/wasp-evm.nomad.tpl", { 
                 artifact = artifact
                 wallet_seed = var.wallet_seed
-                chainid = var.chainid
+                chainid = var.chain_id
                 auth = var.ghcr
             })
         }
