@@ -228,14 +228,14 @@ job "iscp-evm" {
           "wasp"                   = "access"
         }
 
-        logging {
-          type = "gelf"
-          config {
-            gelf-address          = "tcp://elastic-logstash-beats-logstash.service.consul:12201"
-            tag                   = "wasp"
-            labels                = "wasp"
-          }
-        }
+        // logging {
+        //   type = "gelf"
+        //   config {
+        //     gelf-address          = "tcp://elastic-logstash-beats-logstash.service.consul:12201"
+        //     tag                   = "wasp"
+        //     labels                = "wasp"
+        //   }
+        // }
 
         auth {
           username       = "${auth.username}"
