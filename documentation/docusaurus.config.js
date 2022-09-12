@@ -13,7 +13,7 @@ module.exports = {
         remarkPlugins: [require('remark-code-import'), require('remark-import-partial'), require('remark-remove-comments')],
         versions: {
           current: {
-            label: 'Stable',
+            label: 'Stable'
           },
         },
       }
